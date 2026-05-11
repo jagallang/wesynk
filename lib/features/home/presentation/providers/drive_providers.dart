@@ -11,15 +11,9 @@ final drivePhotosProvider = FutureProvider<List<DrivePhoto>>((ref) async {
   final authService = ref.read(authServiceProvider);
   var headers = await authService.getAuthHeaders();
 
-  // 토큰 없으면 자동 로그인 시도
+  // 토큰 없으면 빈 리스트 (앨범 탭에서 "Drive 연결" 버튼 표시)
   if (headers == null) {
-    debugPrint('[DriveProvider] no token, trying auto signIn...');
-    try {
-      await authService.signInWithGoogle();
-      headers = await authService.getAuthHeaders();
-    } catch (e) {
-      debugPrint('[DriveProvider] auto signIn error: $e');
-    }
+    debugPrint('[DriveProvider] no token - show connect button');
   }
 
   debugPrint('[DriveProvider] headers=${headers != null}');
