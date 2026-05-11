@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/drive_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -8,13 +9,16 @@ final driveServiceProvider = Provider<DriveService>((ref) => DriveService());
 final drivePhotosProvider = FutureProvider<List<DrivePhoto>>((ref) async {
   final authService = ref.read(authServiceProvider);
   final headers = await authService.getAuthHeaders();
+  debugPrint('[DriveProvider] headers=${headers != null}');
   if (headers == null) return [];
 
   final service = ref.read(driveServiceProvider);
-  return service.listPhotosRecursive(
+  final photos = await service.listPhotosRecursive(
     authHeaders: headers,
     folderId: DriveService.defaultFolderId,
   );
+  debugPrint('[DriveProvider] loaded ${photos.length} photos');
+  return photos;
 });
 
 /// 특정 날짜의 Drive 사진

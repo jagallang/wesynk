@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -81,21 +82,24 @@ class _PhotoTabContent extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FutureBuilder<Map<String, String>?>(
-              future: ref.read(authServiceProvider).getAuthHeaders(),
+            FutureBuilder<Uint8List?>(
+              future: () async {
+                final headers =
+                    await ref.read(authServiceProvider).getAuthHeaders();
+                if (headers == null) return null;
+                return DrivePhoto.downloadImage(photo.id, headers);
+              }(),
               builder: (context, snap) {
-                if (!snap.hasData || snap.data == null) {
+                if (snap.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
                       height: 300,
                       child: Center(child: CircularProgressIndicator()));
                 }
-                return Image.network(
-                  photo.thumbnailUrl(size: 800),
-                  headers: snap.data!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                      height: 200, child: Icon(Icons.broken_image)),
-                );
+                if (snap.data == null) {
+                  return const SizedBox(
+                      height: 200, child: Icon(Icons.broken_image));
+                }
+                return Image.memory(snap.data!, fit: BoxFit.contain);
               },
             ),
             Padding(
@@ -118,25 +122,32 @@ class _DriveThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (photo.thumbnailLink == null) {
-      return Container(
-          color: Colors.grey.shade200, child: const Icon(Icons.photo));
-    }
-    return FutureBuilder<Map<String, String>?>(
-      future: ref.read(authServiceProvider).getAuthHeaders(),
+    return FutureBuilder<Uint8List?>(
+      future: _loadImage(),
       builder: (context, snap) {
-        if (!snap.hasData || snap.data == null) {
-          return Container(color: Colors.grey.shade200);
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+                child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))),
+          );
         }
-        return Image.network(
-          photo.thumbnailUrl(size: 300),
-          headers: snap.data!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+        if (snap.data == null) {
+          return Container(
               color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image)),
-        );
+              child: const Icon(Icons.broken_image));
+        }
+        return Image.memory(snap.data!, fit: BoxFit.cover);
       },
     );
+  }
+
+  Future<Uint8List?> _loadImage() async {
+    final headers = await ref.read(authServiceProvider).getAuthHeaders();
+    if (headers == null) return null;
+    return DrivePhoto.downloadImage(photo.id, headers);
   }
 }

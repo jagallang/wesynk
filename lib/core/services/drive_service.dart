@@ -30,6 +30,26 @@ class DrivePhoto {
     }
     return imageUrl;
   }
+
+  /// 이미지 바이트 다운로드 (OAuth 인증)
+  static Future<Uint8List?> downloadImage(
+      String fileId, Map<String, String> authHeaders,
+      {bool thumbnail = true, int size = 400}) async {
+    String url;
+    if (thumbnail) {
+      url = 'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
+    } else {
+      url = 'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
+    }
+    try {
+      final response = await http.get(Uri.parse(url), headers: authHeaders);
+      if (response.statusCode == 200) return response.bodyBytes;
+      debugPrint('[DrivePhoto] download error: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[DrivePhoto] download error: $e');
+    }
+    return null;
+  }
 }
 
 class DriveService {
