@@ -47,7 +47,7 @@ class WesynkApp extends ConsumerWidget {
 class _AuthGate extends ConsumerWidget {
   const _AuthGate();
 
-  static const _bypassAuth = true;
+  static const _bypassAuth = false;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
