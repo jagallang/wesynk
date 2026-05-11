@@ -21,7 +21,8 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
   @override
   Widget build(BuildContext context) {
     final selectedDay = ref.watch(selectedDateProvider);
-    final eventCounts = ref.watch(eventCountByDateProvider);
+    final eventCountsAsync = ref.watch(eventCountByDateProvider(_focusedMonth));
+    final eventCounts = eventCountsAsync.valueOrNull ?? {};
 
     return Column(
       children: [
@@ -91,10 +92,8 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
             if (details.primaryVelocity == null) return;
             setState(() {
               if (details.primaryVelocity! < 0) {
-                // 위로 스와이프 → 접기
                 _calendarFormat = CalendarFormat.week;
               } else {
-                // 아래로 스와이프 → 펼치기
                 _calendarFormat = CalendarFormat.month;
               }
             });

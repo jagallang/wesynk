@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 enum ItemType { event, note, photo, date }
@@ -7,7 +8,7 @@ extension ItemTypeExt on ItemType {
         ItemType.event => '일정',
         ItemType.note => '메모',
         ItemType.photo => '사진',
-        ItemType.date => '데이트',
+        ItemType.date => '우리맛집',
       };
 
   IconData get icon => switch (this) {
@@ -41,4 +42,32 @@ class Item {
     required this.createdAt,
     required this.payload,
   });
+
+  /// Firestore 문서 → Item
+  factory Item.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data() ?? {};
+    return Item(
+      id: doc.id,
+      type: ItemType.values.firstWhere(
+        (t) => t.name == d['type'],
+        orElse: () => ItemType.note,
+      ),
+      date: d['date'] as String? ?? '',
+      createdBy: d['createdBy'] as String? ?? '',
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      payload: Map<String, dynamic>.from(d['payload'] as Map? ?? {}),
+    );
+  }
+
+  /// Item → Firestore 문서
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type.name,
+      'date': date,
+      'createdBy': createdBy,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'payload': payload,
+      'deletedAt': null,
+    };
+  }
 }

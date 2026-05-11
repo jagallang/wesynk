@@ -12,17 +12,23 @@ class DayTabContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dateKey = ref.watch(selectedDateKeyProvider);
-    final items = ref.watch(
+    final itemsAsync = ref.watch(
       itemsForDateAndTypeProvider((dateKey: dateKey, type: type)),
     );
 
-    if (items.isEmpty) return EmptyState(type: type);
+    return itemsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('오류: $e')),
+      data: (items) {
+        if (items.isEmpty) return EmptyState(type: type);
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => ItemCard(item: items[i]),
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) => ItemCard(item: items[i]),
+        );
+      },
     );
   }
 }

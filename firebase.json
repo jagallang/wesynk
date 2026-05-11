@@ -2,11 +2,39 @@
   "hosting": {
     "public": "build/web",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
+    "rewrites": [{"source": "**", "destination": "/index.html"}]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "wesynk-app",
+          "appId": "1:242440576982:android:dadf6d2daf840b2517ce77",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "wesynk-app",
+          "appId": "1:242440576982:ios:039fb6b2afcb2c6f17ce77",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "wesynk-app",
+          "configurations": {
+            "android": "1:242440576982:android:dadf6d2daf840b2517ce77",
+            "ios": "1:242440576982:ios:039fb6b2afcb2c6f17ce77",
+            "web": "1:242440576982:web:945cd5cd79cf976917ce77"
+          }
+        }
       }
-    ]
+    }
   }
 }

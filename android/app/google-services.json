@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "242440576982",
+    "project_id": "wesynk-app",
+    "storage_bucket": "wesynk-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:242440576982:android:dadf6d2daf840b2517ce77",
+        "android_client_info": {
+          "package_name": "com.wesynk.wesynk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxWfjDFSqfGN8PeClM-KoFB8-5TW-ZHyA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

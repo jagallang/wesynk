@@ -1,6 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/presentation/providers/home_providers.dart';
+import '../../../security/presentation/pages/pin_screen.dart';
+import '../../../security/presentation/providers/security_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -8,6 +12,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customization = ref.watch(appCustomizationProvider);
+    final user = FirebaseAuth.instance.currentUser;
 
     return SafeArea(
       child: ListView(
@@ -29,8 +34,8 @@ class SettingsPage extends ConsumerWidget {
                     customization.themeColor.withValues(alpha: 0.2),
                 child: Icon(Icons.person, color: customization.themeColor),
               ),
-              title: const Text('내 프로필'),
-              subtitle: const Text('로그인 후 표시됩니다'),
+              title: Text(user?.displayName ?? '내 프로필'),
+              subtitle: Text(user?.email ?? '로그인 후 표시됩니다'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {},
             ),
@@ -318,24 +323,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
 
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('생체인증 잠금'),
-                  subtitle: const Text('Face ID / 지문으로 앱 잠금'),
-                  value: false,
-                  onChanged: (v) {},
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  title: const Text('자동 잠금 시간'),
-                  trailing: const Text('3분'),
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
+          _SecurityCard(),
           const SizedBox(height: 8),
 
           // 기타
@@ -353,7 +341,7 @@ class SettingsPage extends ConsumerWidget {
                   leading: const Icon(Icons.logout, color: Colors.red),
                   title: const Text('로그아웃',
                       style: TextStyle(color: Colors.red)),
-                  onTap: () {},
+                  onTap: () => ref.read(authServiceProvider).signOut(),
                 ),
               ],
             ),
@@ -396,6 +384,78 @@ class SettingsPage extends ConsumerWidget {
             },
             child: const Text('변경'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecurityCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final security = ref.watch(securityProvider);
+
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('앱 잠금 (비밀번호)'),
+            subtitle: Text(
+              security.pinEnabled
+                  ? '앱 시작 시 4자리 비밀번호 입력'
+                  : '꺼짐',
+            ),
+            value: security.pinEnabled,
+            onChanged: (v) {
+              if (v) {
+                // ON → PIN 설정 화면
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PinScreen(mode: PinMode.setup),
+                  ),
+                );
+              } else {
+                // OFF → 현재 비밀번호 확인 후 해제
+                Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => PinScreen(
+                      mode: PinMode.confirm,
+                      onSuccess: () {
+                        ref.read(securityProvider.notifier).state =
+                            const SecuritySettings();
+                      },
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          if (security.pinEnabled) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.lock_reset),
+              title: const Text('비밀번호 변경'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // 현재 비번 확인 → 새 비번 설정
+                Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => PinScreen(
+                      mode: PinMode.confirm,
+                      onSuccess: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const PinScreen(mode: PinMode.change),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

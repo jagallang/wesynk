@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../core/services/firestore_service.dart';
 import 'package:wesync_chat/wesync_chat.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/models/item_model.dart';
@@ -93,7 +94,10 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _addItem(Item item) {
-    ref.read(itemsProvider.notifier).update((items) => [...items, item]);
+    ref.read(firestoreServiceProvider).addItem(
+          coupleId: FirestoreService.defaultCoupleId,
+          item: item,
+        );
   }
 
   void _showEventForm(String dateKey) {

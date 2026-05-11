@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../shared/models/item_model.dart';
 
 // ─── 앱 커스터마이즈 ───
@@ -73,6 +74,12 @@ final appCustomizationProvider = StateProvider<AppCustomization>(
   (ref) => const AppCustomization(),
 );
 
+// ─── Firestore 서비스 ───
+
+final firestoreServiceProvider = Provider<FirestoreService>(
+  (ref) => FirestoreService(),
+);
+
 /// 현재 선택된 날짜
 final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
@@ -82,100 +89,26 @@ final selectedDateKeyProvider = Provider<String>((ref) {
   return DateFormat('yyyy-MM-dd').format(date);
 });
 
-/// 모든 아이템 (Mock 데이터)
-final itemsProvider = StateProvider<List<Item>>((ref) {
-  final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-  final yesterday = DateFormat('yyyy-MM-dd')
-      .format(DateTime.now().subtract(const Duration(days: 1)));
-
-  return [
-    // 오늘 샘플
-    Item(
-      id: '1',
-      type: ItemType.event,
-      date: today,
-      createdBy: 'me',
-      createdAt: DateTime.now(),
-      payload: {
-        'title': '카페 데이트',
-        'location': '성수동 ○○카페',
-        'startAt': DateTime.now().toIso8601String(),
-        'allDay': false,
-      },
-    ),
-    Item(
-      id: '2',
-      type: ItemType.note,
-      date: today,
-      createdBy: 'me',
-      createdAt: DateTime.now(),
-      payload: {
-        'body': '오늘 날씨가 너무 좋았다. 같이 산책하고 싶다.',
-        'mood': '😊',
-      },
-    ),
-    Item(
-      id: '3',
-      type: ItemType.date,
-      date: today,
-      createdBy: 'me',
-      createdAt: DateTime.now(),
-      payload: {
-        'title': '성수동 카페 투어',
-        'place': {'name': '○○카페', 'lat': 37.54, 'lng': 127.05},
-        'cost': {'amount': 45000, 'currency': 'KRW', 'payer': 'me'},
-        'rating': 4,
-        'review': '케이크가 진짜 맛있었음',
-      },
-    ),
-    // 어제 샘플
-    Item(
-      id: '4',
-      type: ItemType.event,
-      date: yesterday,
-      createdBy: 'partner',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      payload: {
-        'title': '영화 보기',
-        'location': 'CGV 강남',
-        'startAt': DateTime.now()
-            .subtract(const Duration(days: 1))
-            .toIso8601String(),
-        'allDay': false,
-      },
-    ),
-    Item(
-      id: '5',
-      type: ItemType.note,
-      date: yesterday,
-      createdBy: 'me',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      payload: {
-        'body': '같이 본 영화가 재밌었다!',
-        'mood': '🎬',
-      },
-    ),
-  ];
+/// 특정 날짜 + 특정 타입의 아이템 (Firestore 실시간 스트림)
+final itemsForDateAndTypeProvider = StreamProvider.family<List<Item>,
+    ({String dateKey, ItemType type})>((ref, params) {
+  final service = ref.watch(firestoreServiceProvider);
+  return service.itemsStream(
+    coupleId: FirestoreService.defaultCoupleId,
+    dateKey: params.dateKey,
+    type: params.type,
+  );
 });
 
-/// 특정 날짜 + 특정 타입의 아이템 필터
-final itemsForDateAndTypeProvider =
-    Provider.family<List<Item>, ({String dateKey, ItemType type})>((ref, params) {
-  final items = ref.watch(itemsProvider);
-  return items
-      .where((item) => item.date == params.dateKey && item.type == params.type)
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-});
-
-/// 월별 이벤트 개수 (캘린더 dot 마커용)
-final eventCountByDateProvider = Provider<Map<String, int>>((ref) {
-  final items = ref.watch(itemsProvider);
-  final counts = <String, int>{};
-  for (final item in items) {
-    if (item.type == ItemType.event) {
-      counts[item.date] = (counts[item.date] ?? 0) + 1;
-    }
-  }
-  return counts;
+/// 월별 이벤트 개수 (캘린더 dot 마커용, Firestore 실시간 스트림)
+final eventCountByDateProvider =
+    StreamProvider.family<Map<String, int>, DateTime>((ref, month) {
+  final service = ref.watch(firestoreServiceProvider);
+  final firstDay = DateTime(month.year, month.month, 1);
+  final lastDay = DateTime(month.year, month.month + 1, 0);
+  return service.eventCountsStream(
+    coupleId: FirestoreService.defaultCoupleId,
+    firstDay: DateFormat('yyyy-MM-dd').format(firstDay),
+    lastDay: DateFormat('yyyy-MM-dd').format(lastDay),
+  );
 });
