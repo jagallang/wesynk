@@ -1,0 +1,14 @@
+name: wesync_chat
+description: WeSync 채팅 모듈 - 커플 비밀 채팅 + 휘발 메시지
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.7.2
+  flutter: '>=3.29.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: ^0.19.0
+  uuid: ^4.2.1
