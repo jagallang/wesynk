@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 
 class AppTheme {
@@ -11,11 +12,16 @@ class AppTheme {
     final isDark = ThemeData.estimateBrightnessForColor(bg) == Brightness.dark;
     final light = HSLColor.fromColor(primary).withLightness(0.85).toColor();
 
+    final textTheme = GoogleFonts.notoSansKrTextTheme(
+      isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+    );
+
     return ThemeData(
       useMaterial3: true,
       colorSchemeSeed: primary,
       brightness: isDark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: bg,
+      textTheme: textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,

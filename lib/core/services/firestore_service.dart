@@ -77,4 +77,92 @@ class FirestoreService {
       });
     }
   }
+
+  /// 샘플 데이터 생성 (Firestore에 아이템이 없을 때 1회)
+  Future<void> seedSampleData(String coupleId) async {
+    final col = _itemsCol(coupleId);
+    final existing = await col.limit(1).get();
+    if (existing.docs.isNotEmpty) return; // 이미 데이터 있으면 스킵
+
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+    final samples = [
+      // 오늘 일정
+      {
+        'type': 'event',
+        'date': todayStr,
+        'createdBy': 'me',
+        'createdAt': Timestamp.fromDate(today),
+        'deletedAt': null,
+        'payload': {
+          'title': '카페 데이트',
+          'location': '성수동 ○○카페',
+          'startAt': today.toIso8601String(),
+          'allDay': false,
+        },
+      },
+      // 오늘 메모
+      {
+        'type': 'note',
+        'date': todayStr,
+        'createdBy': 'me',
+        'createdAt': Timestamp.fromDate(today.subtract(const Duration(hours: 1))),
+        'deletedAt': null,
+        'payload': {
+          'body': '오늘 날씨가 너무 좋았다. 같이 산책하고 싶다.',
+          'mood': '😊',
+        },
+      },
+      // 오늘 우리맛집
+      {
+        'type': 'date',
+        'date': todayStr,
+        'createdBy': 'me',
+        'createdAt': Timestamp.fromDate(today.subtract(const Duration(hours: 2))),
+        'deletedAt': null,
+        'payload': {
+          'title': '성수동 카페 투어',
+          'place': {'name': '○○카페', 'lat': 37.54, 'lng': 127.05},
+          'cost': {'amount': 45000, 'currency': 'KRW', 'payer': 'me'},
+          'rating': 4,
+          'review': '케이크가 진짜 맛있었음',
+        },
+      },
+      // 어제 일정
+      {
+        'type': 'event',
+        'date': yesterdayStr,
+        'createdBy': 'partner',
+        'createdAt': Timestamp.fromDate(yesterday),
+        'deletedAt': null,
+        'payload': {
+          'title': '영화 보기',
+          'location': 'CGV 강남',
+          'startAt': yesterday.toIso8601String(),
+          'allDay': false,
+        },
+      },
+      // 어제 메모
+      {
+        'type': 'note',
+        'date': yesterdayStr,
+        'createdBy': 'me',
+        'createdAt': Timestamp.fromDate(yesterday.subtract(const Duration(hours: 1))),
+        'deletedAt': null,
+        'payload': {
+          'body': '같이 본 영화가 재밌었다!',
+          'mood': '🎬',
+        },
+      },
+    ];
+
+    final batch = _db.batch();
+    for (final data in samples) {
+      batch.set(col.doc(), data);
+    }
+    await batch.commit();
+  }
 }
