@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_settings.dart';
+import '../models/chat_strings.dart';
 
 class MessageInput extends StatefulWidget {
   final Future<void> Function(String body, Duration? lifetime) onSend;
@@ -19,12 +20,10 @@ class MessageInput extends StatefulWidget {
 
 class _MessageInputState extends State<MessageInput> {
   final _controller = TextEditingController();
-  bool? _ephemeralOverride; // null이면 설정 기본값 사용
+  bool? _ephemeralOverride;
   Duration _lastLifetime = const Duration(hours: 1);
 
-  bool get _isEphemeral =>
-      _ephemeralOverride ?? widget.defaultEphemeral;
-
+  bool get _isEphemeral => _ephemeralOverride ?? widget.defaultEphemeral;
   Duration get _activeLifetime =>
       widget.defaultEphemeral ? widget.defaultLifetime : _lastLifetime;
 
@@ -37,22 +36,19 @@ class _MessageInputState extends State<MessageInput> {
   Future<void> _send() async {
     final body = _controller.text.trim();
     if (body.isEmpty) return;
-
     final lifetime = _isEphemeral ? _activeLifetime : null;
     _controller.clear();
     setState(() => _ephemeralOverride = null);
-
     await widget.onSend(body, lifetime);
   }
 
   Future<void> _toggleEphemeral() async {
-    final result = await _pickMessageMode(context, _isEphemeral, _lastLifetime);
+    final result =
+        await _pickMessageMode(context, _isEphemeral, _lastLifetime);
     if (result == null) return;
     if (result == Duration.zero) {
-      // 영구 저장 선택
       setState(() => _ephemeralOverride = false);
     } else {
-      // 휘발 수명 선택
       setState(() {
         _ephemeralOverride = true;
         _lastLifetime = result;
@@ -77,14 +73,12 @@ class _MessageInputState extends State<MessageInput> {
         child: Row(
           children: [
             IconButton(
-              icon: Icon(
-                Icons.timer_outlined,
-                color: ephemeral ? theme.colorScheme.primary : Colors.grey,
-              ),
+              icon: Icon(Icons.timer_outlined,
+                  color: ephemeral ? theme.colorScheme.primary : Colors.grey),
               onPressed: _toggleEphemeral,
               tooltip: ephemeral
-                  ? '${formatLifetime(lifetime)} 휘발 (탭하면 해제)'
-                  : '휘발 메시지',
+                  ? CS.ephemeralTooltip(formatLifetime(lifetime))
+                  : CS.ephemeral,
             ),
             Expanded(
               child: TextField(
@@ -94,23 +88,17 @@ class _MessageInputState extends State<MessageInput> {
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
                   hintText: ephemeral
-                      ? '${formatLifetime(lifetime)} 후 사라질 메시지'
-                      : '메시지 입력...',
+                      ? CS.ephemeralHint(formatLifetime(lifetime))
+                      : CS.chatInput,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                      borderRadius: BorderRadius.circular(20)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   isDense: true,
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: _send,
-            ),
+            IconButton(icon: const Icon(Icons.send), onPressed: _send),
           ],
         ),
       ),
@@ -118,8 +106,6 @@ class _MessageInputState extends State<MessageInput> {
   }
 }
 
-/// 메시지 모드 선택: 영구 저장(Duration.zero) 또는 휘발(Duration).
-/// null이면 취소.
 Future<Duration?> _pickMessageMode(
     BuildContext context, bool currentlyEphemeral, Duration lastLifetime) async {
   return showModalBottomSheet<Duration>(
@@ -128,40 +114,35 @@ Future<Duration?> _pickMessageMode(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              '메시지 보관 방식',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(CS.messageMode,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
-          // 영구 저장
           ListTile(
-            leading: Icon(
-              Icons.save_outlined,
-              color: !currentlyEphemeral ? Theme.of(context).colorScheme.primary : Colors.grey,
-            ),
-            title: const Text('영구 저장'),
-            subtitle: const Text('메시지가 삭제 전까지 보관됩니다'),
+            leading: Icon(Icons.save_outlined,
+                color: !currentlyEphemeral
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey),
+            title: Text(CS.permanent),
+            subtitle: Text(CS.permanentDesc),
             trailing: !currentlyEphemeral
-                ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                ? Icon(Icons.check_circle,
+                    color: Theme.of(context).colorScheme.primary)
                 : null,
             onTap: () => Navigator.pop(context, Duration.zero),
           ),
           const Divider(height: 1),
-          // 휘발 섹션 헤더
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                '휘발 메시지 (자동 사라짐)',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: Text(CS.ephemeralSection,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
           Padding(
@@ -169,17 +150,19 @@ Future<Duration?> _pickMessageMode(
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: ephemeralPresets.map((p) {
+              children: List.generate(ephemeralPresets.length, (i) {
+                final p = ephemeralPresets[i];
                 final isSelected = currentlyEphemeral &&
                     p.$2.inSeconds == lastLifetime.inSeconds;
                 return ActionChip(
-                  label: Text(p.$1),
+                  label: Text(CS.lifetimeLabels[i]),
                   side: isSelected
-                      ? BorderSide(color: Theme.of(context).colorScheme.primary)
+                      ? BorderSide(
+                          color: Theme.of(context).colorScheme.primary)
                       : null,
                   onPressed: () => Navigator.pop(context, p.$2),
                 );
-              }).toList(),
+              }),
             ),
           ),
           const SizedBox(height: 24),

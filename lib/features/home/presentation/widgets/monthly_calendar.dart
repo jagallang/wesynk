@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../providers/home_providers.dart';
 
 class MonthlyCalendar extends ConsumerStatefulWidget {
@@ -27,15 +28,15 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
     return Column(
       children: [
         TableCalendar(
-          locale: 'ko_KR',
+          locale: S.isKo ? 'ko_KR' : 'en_US',
           firstDay: DateTime.utc(2020, 1, 1),
           lastDay: DateTime.utc(2035, 12, 31),
           focusedDay: _focusedMonth,
           selectedDayPredicate: (d) => isSameDay(d, selectedDay),
           calendarFormat: _calendarFormat,
-          availableCalendarFormats: const {
-            CalendarFormat.month: '월간',
-            CalendarFormat.week: '주간',
+          availableCalendarFormats: {
+            CalendarFormat.month: S.calendarMonth,
+            CalendarFormat.week: S.calendarWeek,
           },
           startingDayOfWeek: StartingDayOfWeek.sunday,
           headerStyle: const HeaderStyle(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/message.dart';
 import '../models/chat_settings.dart';
+import '../models/chat_strings.dart';
 import '../services/chat_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
@@ -55,7 +56,6 @@ class _ChatScreenState extends State<ChatScreen> {
       color: bgColor,
       child: Column(
         children: [
-          // 헤더
           SafeArea(
             bottom: false,
             child: Container(
@@ -63,13 +63,11 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
               child: Row(
                 children: [
-                  Text(
-                    '우리',
-                    style:
-                        Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                  ),
+                  Text(CS.chatTitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold)),
                   if (_chatSettings.defaultEphemeral) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -92,9 +90,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           Text(
                             formatLifetime(_chatSettings.defaultLifetime),
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                                fontSize: 12,
+                                color:
+                                    Theme.of(context).colorScheme.primary),
                           ),
                         ],
                       ),
@@ -110,8 +108,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const Divider(height: 1),
-
-          // 메시지 목록
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: _service.recentMessagesStream(),
@@ -123,19 +119,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 final visible = all.where((m) => m.isVisible()).toList();
 
                 if (visible.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline,
+                        const Icon(Icons.chat_bubble_outline,
                             size: 48, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text('아직 대화가 없어요',
-                            style: TextStyle(color: Colors.grey)),
-                        SizedBox(height: 4),
-                        Text('첫 메시지를 보내보세요',
-                            style:
-                                TextStyle(color: Colors.grey, fontSize: 12)),
+                        const SizedBox(height: 12),
+                        Text(CS.chatEmpty,
+                            style: const TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(CS.chatFirst,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   );
@@ -160,8 +156,6 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-
-          // 입력창
           MessageInput(
             defaultEphemeral: _chatSettings.defaultEphemeral,
             defaultLifetime: _chatSettings.defaultLifetime,
@@ -210,21 +204,20 @@ class _ChatScreenState extends State<ChatScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.copy),
-              title: const Text('복사'),
+              title: Text(CS.copy),
               onTap: () {
                 Clipboard.setData(ClipboardData(text: msg.body));
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('복사됨')),
-                );
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(CS.copied)));
               },
             ),
             if (isMine)
               ListTile(
                 leading:
                     const Icon(Icons.delete_outline, color: Colors.red),
-                title:
-                    const Text('삭제', style: TextStyle(color: Colors.red)),
+                title: Text(CS.delete,
+                    style: const TextStyle(color: Colors.red)),
                 onTap: () {
                   _service.hide(msg.id);
                   Navigator.pop(context);

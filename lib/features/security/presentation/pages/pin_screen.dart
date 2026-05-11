@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../providers/security_provider.dart';
 
 enum PinMode { unlock, setup, confirm, change }
@@ -8,11 +9,7 @@ class PinScreen extends ConsumerStatefulWidget {
   final PinMode mode;
   final VoidCallback? onSuccess;
 
-  const PinScreen({
-    super.key,
-    required this.mode,
-    this.onSuccess,
-  });
+  const PinScreen({super.key, required this.mode, this.onSuccess});
 
   @override
   ConsumerState<PinScreen> createState() => _PinScreenState();
@@ -20,7 +17,7 @@ class PinScreen extends ConsumerStatefulWidget {
 
 class _PinScreenState extends ConsumerState<PinScreen> {
   String _input = '';
-  String? _firstPin; // setup 모드에서 첫 번째 입력 저장
+  String? _firstPin;
   String _title = '';
   String? _error;
 
@@ -32,12 +29,12 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   void _updateTitle() {
     _title = switch (widget.mode) {
-      PinMode.unlock => '비밀번호를 입력하세요',
-      PinMode.setup when _firstPin == null => '새 비밀번호 입력',
-      PinMode.setup => '비밀번호 확인',
-      PinMode.confirm => '현재 비밀번호 입력',
-      PinMode.change when _firstPin == null => '새 비밀번호 입력',
-      PinMode.change => '비밀번호 확인',
+      PinMode.unlock => S.pinEnter,
+      PinMode.setup when _firstPin == null => S.pinNew,
+      PinMode.setup => S.pinConfirm,
+      PinMode.confirm => S.pinCurrent,
+      PinMode.change when _firstPin == null => S.pinNew,
+      PinMode.change => S.pinConfirm,
     };
   }
 
@@ -65,11 +62,10 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       case PinMode.unlock:
         _handleUnlock();
       case PinMode.setup:
+      case PinMode.change:
         _handleSetup();
       case PinMode.confirm:
         _handleConfirm();
-      case PinMode.change:
-        _handleSetup(); // change도 setup과 동일 흐름
     }
   }
 
@@ -81,34 +77,29 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     } else {
       setState(() {
         _input = '';
-        _error = '비밀번호가 틀렸습니다';
+        _error = S.pinWrong;
       });
     }
   }
 
   void _handleSetup() {
     if (_firstPin == null) {
-      // 첫 번째 입력
       setState(() {
         _firstPin = _input;
         _input = '';
         _updateTitle();
       });
     } else {
-      // 확인 입력
       if (_input == _firstPin) {
         ref.read(securityProvider.notifier).state =
-            ref.read(securityProvider).copyWith(
-                  pinEnabled: true,
-                  pin: _input,
-                );
+            ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input);
         widget.onSuccess?.call();
         if (mounted) Navigator.of(context).pop(true);
       } else {
         setState(() {
           _input = '';
           _firstPin = null;
-          _error = '비밀번호가 일치하지 않습니다. 다시 입력하세요';
+          _error = S.pinMismatch;
           _updateTitle();
         });
       }
@@ -123,7 +114,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     } else {
       setState(() {
         _input = '';
-        _error = '비밀번호가 틀렸습니다';
+        _error = S.pinWrong;
       });
     }
   }
@@ -138,26 +129,16 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: canPop
-            ? AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-              )
+            ? AppBar(backgroundColor: Colors.transparent, elevation: 0)
             : null,
         body: SafeArea(
           child: Column(
             children: [
               const Spacer(flex: 2),
-
-              // 타이틀
-              Text(
-                _title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text(_title,
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 32),
-
-              // 4개 동그라미
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (i) {
@@ -181,27 +162,16 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                   );
                 }),
               ),
-
-              // 에러 메시지
               const SizedBox(height: 16),
               SizedBox(
                 height: 20,
                 child: _error != null
-                    ? Text(
-                        _error!,
-                        style: const TextStyle(
-                            color: Colors.red, fontSize: 13),
-                      )
+                    ? Text(_error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 13))
                     : null,
               ),
-
               const Spacer(flex: 1),
-
-              // 숫자 키패드
-              _Keypad(
-                onKeyTap: _onKeyTap,
-                onDelete: _onDelete,
-              ),
+              _Keypad(onKeyTap: _onKeyTap, onDelete: _onDelete),
               const Spacer(flex: 1),
             ],
           ),
@@ -214,7 +184,6 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 class _Keypad extends StatelessWidget {
   final ValueChanged<String> onKeyTap;
   final VoidCallback onDelete;
-
   const _Keypad({required this.onKeyTap, required this.onDelete});
 
   @override
@@ -225,34 +194,25 @@ class _Keypad extends StatelessWidget {
       ['7', '8', '9'],
       ['', '0', 'del'],
     ];
-
     return Column(
       children: keys.map((row) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: row.map((key) {
-            if (key.isEmpty) {
-              return const SizedBox(width: 80, height: 64);
-            }
+            if (key.isEmpty) return const SizedBox(width: 80, height: 64);
             if (key == 'del') {
               return SizedBox(
-                width: 80,
-                height: 64,
+                width: 80, height: 64,
                 child: IconButton(
-                  icon: const Icon(Icons.backspace_outlined),
-                  onPressed: onDelete,
-                ),
+                    icon: const Icon(Icons.backspace_outlined),
+                    onPressed: onDelete),
               );
             }
             return SizedBox(
-              width: 80,
-              height: 64,
+              width: 80, height: 64,
               child: TextButton(
                 onPressed: () => onKeyTap(key),
-                child: Text(
-                  key,
-                  style: const TextStyle(fontSize: 28),
-                ),
+                child: Text(key, style: const TextStyle(fontSize: 28)),
               ),
             );
           }).toList(),

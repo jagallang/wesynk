@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -19,7 +20,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('로그인 실패: $e')),
+          SnackBar(content: Text(S.loginFailed('$e'))),
         );
       }
     } finally {
@@ -38,13 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           child: Column(
             children: [
               const Spacer(flex: 3),
-
-              // 앱 아이콘
-              Icon(
-                Icons.favorite,
-                size: 72,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.favorite, size: 72, color: theme.colorScheme.primary),
               const SizedBox(height: 16),
               Text(
                 'WeSync',
@@ -54,16 +49,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                '둘만의 공유 캘린더 + 채팅',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey,
-                ),
-              ),
-
+              Text(S.loginSubtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
               const Spacer(flex: 2),
-
-              // Google 로그인 버튼
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -71,23 +59,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   onPressed: _loading ? null : _signIn,
                   icon: _loading
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.g_mobiledata, size: 28),
                   label: Text(
-                    _loading ? '로그인 중...' : 'Google로 시작하기',
+                    _loading ? S.loginLoading : S.loginWithGoogle,
                     style: const TextStyle(fontSize: 16),
                   ),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
-
               const Spacer(flex: 1),
             ],
           ),

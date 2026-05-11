@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/chat_strings.dart';
 import '../models/message.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -64,9 +65,9 @@ class MessageBubble extends StatelessWidget {
                       ),
                       if (showReadReceipts && isMine && message.readBy.length > 1) ...[
                         const SizedBox(width: 4),
-                        const Text(
-                          '읽음',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        Text(
+                          CS.chatRead,
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                       ],
                       if (message.isEphemeral) ...[
@@ -128,9 +129,9 @@ class _RemainingBadge extends StatelessWidget {
   }
 
   String _formatRemaining(Duration d) {
-    if (d.inDays > 0) return '${d.inDays}일 후';
-    if (d.inHours > 0) return '${d.inHours}시간 후';
-    if (d.inMinutes > 0) return '${d.inMinutes}분 후';
-    return '${d.inSeconds}초 후';
+    if (d.inDays > 0) return CS.daysAfter(d.inDays);
+    if (d.inHours > 0) return CS.hoursAfter(d.inHours);
+    if (d.inMinutes > 0) return CS.minutesAfter(d.inMinutes);
+    return CS.secondsAfter(d.inSeconds);
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_strings.dart';
 
 class AlbumPage extends StatelessWidget {
   const AlbumPage({super.key});
@@ -13,7 +14,7 @@ class AlbumPage extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '앨범',
+                  S.albumTitle,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -21,23 +22,16 @@ class AlbumPage extends StatelessWidget {
               ],
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.photo_library_outlined,
+                  const Icon(Icons.photo_library_outlined,
                       size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    '사진이 없습니다',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Phase 3에서 Drive 연동 후 사용 가능',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
+                  const SizedBox(height: 16),
+                  Text(S.albumEmpty,
+                      style: const TextStyle(color: Colors.grey, fontSize: 16)),
                 ],
               ),
             ),

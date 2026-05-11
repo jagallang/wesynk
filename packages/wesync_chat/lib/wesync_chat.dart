@@ -1,5 +1,6 @@
 export 'models/message.dart';
 export 'models/chat_settings.dart';
+export 'models/chat_strings.dart';
 export 'services/chat_service.dart';
 export 'widgets/message_bubble.dart';
 export 'widgets/message_input.dart';

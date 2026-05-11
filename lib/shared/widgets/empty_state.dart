@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_strings.dart';
 import '../models/item_model.dart';
 
 class EmptyState extends StatelessWidget {
@@ -14,12 +15,12 @@ class EmptyState extends StatelessWidget {
           Icon(type.icon, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
-            '이 날 ${type.label} 없음',
+            S.noItemForDay(type.label),
             style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 4),
           Text(
-            '아래 + 버튼으로 추가',
+            S.addWithButton,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
         ],

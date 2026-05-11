@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../core/constants/app_strings.dart';
 
 enum ItemType { event, note, photo, date }
 
 extension ItemTypeExt on ItemType {
   String get label => switch (this) {
-        ItemType.event => '여행',
-        ItemType.note => '글',
-        ItemType.photo => '사진',
-        ItemType.date => '맛집',
+        ItemType.event => S.tabTravel,
+        ItemType.note => S.tabNote,
+        ItemType.photo => S.tabPhoto,
+        ItemType.date => S.tabFood,
       };
 
   IconData get icon => switch (this) {
@@ -29,7 +30,7 @@ const tabOrder = [
 class Item {
   final String id;
   final ItemType type;
-  final String date; // "YYYY-MM-DD"
+  final String date;
   final String createdBy;
   final DateTime createdAt;
   final Map<String, dynamic> payload;
@@ -43,7 +44,6 @@ class Item {
     required this.payload,
   });
 
-  /// Firestore 문서 → Item
   factory Item.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
     return Item(
@@ -59,7 +59,6 @@ class Item {
     );
   }
 
-  /// Item → Firestore 문서
   Map<String, dynamic> toMap() {
     return {
       'type': type.name,

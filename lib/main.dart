@@ -11,6 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initializeDateFormatting('ko_KR');
+  await initializeDateFormatting('en_US');
 
   // 폰트 로딩 실패 시 기본 폰트로 fallback (콘솔 경고 방지)
   GoogleFonts.config.allowRuntimeFetching = true;
