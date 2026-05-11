@@ -200,98 +200,96 @@ class FirestoreService {
     debugPrint('[FirestoreService] seedSampleData: ${samples.length}건 생성');
   }
 
-  // ─── 이메일 페어링 시스템 ───
+  // ─── 이메일 양방향 매칭 페어링 ───
 
-  /// 페어링 요청 보내기 (내 이메일 → 파트너 이메일)
-  Future<void> requestPairing({
+  /// 내 이메일 + 파트너 이메일 등록 → 양방향 매칭 확인
+  /// 매칭 성공 시 coupleId 반환, 대기 중이면 null
+  Future<String?> registerForPairing({
     required String myEmail,
     required String partnerEmail,
     required String coupleId,
   }) async {
-    await _db.collection('pairing_requests').doc(partnerEmail).set({
-      'fromEmail': myEmail,
-      'toEmail': partnerEmail,
+    final myKey = myEmail.toLowerCase();
+    final partnerKey = partnerEmail.toLowerCase();
+
+    // 내 등록 저장
+    await _db.collection('pairing').doc(myKey).set({
+      'myEmail': myKey,
+      'partnerEmail': partnerKey,
       'coupleId': coupleId,
-      'status': 'pending',
       'createdAt': Timestamp.fromDate(DateTime.now()),
     });
-    debugPrint('[FirestoreService] pairing request: $myEmail → $partnerEmail');
+    debugPrint('[FirestoreService] pairing registered: $myKey → $partnerKey');
+
+    // 상대방 등록 확인 → 양방향 매칭 체크
+    return _checkMutualMatch(myKey, partnerKey, coupleId);
   }
 
-  /// 내게 온 페어링 요청 확인
-  Future<Map<String, dynamic>?> getPairingRequest(String myEmail) async {
-    final doc = await _db.collection('pairing_requests').doc(myEmail).get();
-    if (!doc.exists) return null;
-    final data = doc.data()!;
-    if (data['status'] != 'pending') return null;
-    return data;
-  }
+  /// 양방향 매칭 확인
+  Future<String?> _checkMutualMatch(
+      String myEmail, String partnerEmail, String myCoupleId) async {
+    final partnerDoc =
+        await _db.collection('pairing').doc(partnerEmail).get();
 
-  /// 페어링 요청 스트림 (실시간 감시)
-  Stream<Map<String, dynamic>?> pairingRequestStream(String myEmail) {
-    return _db
-        .collection('pairing_requests')
-        .doc(myEmail)
-        .snapshots()
-        .map((snap) {
-      if (!snap.exists) return null;
-      final data = snap.data()!;
-      if (data['status'] != 'pending') return null;
-      return data;
+    if (!partnerDoc.exists) {
+      debugPrint('[FirestoreService] partner not registered yet');
+      return null;
+    }
+
+    final partnerData = partnerDoc.data()!;
+    final theirPartner = partnerData['partnerEmail'] as String?;
+    final theirCoupleId = partnerData['coupleId'] as String?;
+
+    // 상대방이 나를 파트너로 등록했는지 확인
+    if (theirPartner != myEmail) {
+      debugPrint('[FirestoreService] partner email mismatch: $theirPartner != $myEmail');
+      return null;
+    }
+
+    // 매칭 성공! 먼저 등록한 사람의 coupleId 사용
+    final matchedCoupleId = theirCoupleId ?? myCoupleId;
+
+    // 양쪽 문서에 매칭 상태 기록
+    final now = Timestamp.fromDate(DateTime.now());
+    await _db.collection('pairing').doc(myEmail).update({
+      'matched': true,
+      'matchedCoupleId': matchedCoupleId,
+      'matchedAt': now,
     });
-  }
-
-  /// 페어링 수락
-  Future<String?> acceptPairing(String myEmail) async {
-    final doc = _db.collection('pairing_requests').doc(myEmail);
-    final snap = await doc.get();
-    if (!snap.exists) return null;
-
-    final data = snap.data()!;
-    final coupleId = data['coupleId'] as String;
-
-    // 수락 상태로 업데이트
-    await doc.update({
-      'status': 'accepted',
-      'acceptedAt': Timestamp.fromDate(DateTime.now()),
+    await _db.collection('pairing').doc(partnerEmail).update({
+      'matched': true,
+      'matchedCoupleId': matchedCoupleId,
+      'matchedAt': now,
     });
 
-    // couples 문서에 멤버 추가
-    await _db.collection('couples').doc(coupleId).set({
-      'members': [data['fromEmail'], myEmail],
-      'createdAt': Timestamp.fromDate(DateTime.now()),
+    // couples 문서 업데이트
+    await _db.collection('couples').doc(matchedCoupleId).set({
+      'members': [myEmail, partnerEmail],
+      'createdAt': now,
     }, SetOptions(merge: true));
 
-    debugPrint('[FirestoreService] pairing accepted: $coupleId');
-    return coupleId;
+    debugPrint('[FirestoreService] MATCHED! coupleId=$matchedCoupleId');
+    return matchedCoupleId;
   }
 
-  /// 페어링 거부
-  Future<void> rejectPairing(String myEmail) async {
-    await _db.collection('pairing_requests').doc(myEmail).update({
-      'status': 'rejected',
-    });
-  }
-
-  /// 내가 보낸 페어링 요청 상태 확인
-  Stream<String?> sentPairingStatusStream(String partnerEmail) {
+  /// 내 페어링 상태 실시간 스트림 (매칭 감지용)
+  Stream<Map<String, dynamic>?> pairingStatusStream(String myEmail) {
     return _db
-        .collection('pairing_requests')
-        .doc(partnerEmail)
+        .collection('pairing')
+        .doc(myEmail.toLowerCase())
         .snapshots()
-        .map((snap) {
-      if (!snap.exists) return null;
-      return snap.data()?['status'] as String?;
-    });
+        .map((snap) => snap.data());
   }
 
   /// 페어링 해제
-  Future<void> disconnectPairing({
-    required String myEmail,
-    required String partnerEmail,
-  }) async {
-    // 양쪽 요청 삭제
-    await _db.collection('pairing_requests').doc(myEmail).delete();
-    await _db.collection('pairing_requests').doc(partnerEmail).delete();
+  Future<void> disconnectPairing(String myEmail) async {
+    final doc = await _db.collection('pairing').doc(myEmail.toLowerCase()).get();
+    if (doc.exists) {
+      final partnerEmail = doc.data()?['partnerEmail'] as String?;
+      await _db.collection('pairing').doc(myEmail.toLowerCase()).delete();
+      if (partnerEmail != null) {
+        await _db.collection('pairing').doc(partnerEmail).delete();
+      }
+    }
   }
 }

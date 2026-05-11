@@ -80,8 +80,8 @@ class S {
   static String get partnerPlaceholder =>
       isKo ? '파트너 이메일을 등록하세요' : 'Register partner email';
   static String get pairingDesc =>
-      isKo ? '서로의 Gmail 주소를 입력하면 같은 공간을 공유합니다'
-          : 'Enter each other\'s Gmail to share the same space';
+      isKo ? '서로의 이메일을 입력하면 자동으로 매칭됩니다. 두 사람 모두 상대방의 이메일을 입력해야 연결됩니다.'
+          : 'Enter each other\'s email to auto-match. Both must enter each other\'s email.';
   static String get myEmail => isKo ? '내 이메일' : 'My Email';
   static String get partnerEmail => isKo ? '파트너 이메일' : 'Partner Email';
   static String get partnerEmailHint => isKo ? 'partner@gmail.com' : 'partner@gmail.com';
