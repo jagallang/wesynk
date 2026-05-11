@@ -34,7 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
       coupleId: widget.coupleId,
       myUid: widget.myUid,
     );
-    _service.addSampleMessages();
+    _service.seedSampleMessages();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });

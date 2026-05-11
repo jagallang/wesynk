@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Message {
   final String id;
   final String senderId;
@@ -19,6 +21,38 @@ class Message {
     this.editedAt,
   });
 
+  /// Firestore 문서 → Message
+  factory Message.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data() ?? {};
+    return Message(
+      id: doc.id,
+      senderId: d['senderId'] as String? ?? '',
+      body: d['body'] as String? ?? '',
+      sentAt: (d['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      readBy: (d['readBy'] as Map<String, dynamic>? ?? {}).map(
+        (k, v) => MapEntry(k, (v as Timestamp).toDate()),
+      ),
+      reactions: (d['reactions'] as Map<String, dynamic>? ?? {}).map(
+        (k, v) => MapEntry(k, List<String>.from(v as List)),
+      ),
+      hideAfter: (d['hideAfter'] as Timestamp?)?.toDate(),
+      editedAt: (d['editedAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  /// Message → Firestore 문서
+  Map<String, dynamic> toMap() {
+    return {
+      'senderId': senderId,
+      'body': body,
+      'sentAt': Timestamp.fromDate(sentAt),
+      'readBy': readBy.map((k, v) => MapEntry(k, Timestamp.fromDate(v))),
+      'reactions': reactions,
+      'hideAfter': hideAfter == null ? null : Timestamp.fromDate(hideAfter!),
+      'editedAt': editedAt == null ? null : Timestamp.fromDate(editedAt!),
+    };
+  }
+
   Message copyWith({
     Map<String, DateTime>? readBy,
     Map<String, List<String>>? reactions,
@@ -37,20 +71,17 @@ class Message {
     );
   }
 
-  /// hideAfter가 null이면 영구 보관, 있으면 그 시점 후 숨김.
   bool isVisible([DateTime? now]) {
     final t = now ?? DateTime.now();
     return hideAfter == null || hideAfter!.isAfter(t);
   }
 
-  /// 휘발 메시지인가? (sentAt과 5초 이상 차이나면 휘발)
   bool get isEphemeral {
     final h = hideAfter;
     if (h == null) return false;
     return h.difference(sentAt).inSeconds > 5;
   }
 
-  /// 휘발 메시지의 남은 시간. 일반 메시지면 null.
   Duration? remainingLifetime([DateTime? now]) {
     if (!isEphemeral) return null;
     final t = now ?? DateTime.now();
