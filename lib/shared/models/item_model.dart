@@ -5,10 +5,10 @@ enum ItemType { event, note, photo, date }
 
 extension ItemTypeExt on ItemType {
   String get label => switch (this) {
-        ItemType.event => '일정',
-        ItemType.note => '메모',
+        ItemType.event => '여행',
+        ItemType.note => '글',
         ItemType.photo => '사진',
-        ItemType.date => '우리맛집',
+        ItemType.date => '맛집',
       };
 
   IconData get icon => switch (this) {

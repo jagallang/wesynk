@@ -20,10 +20,12 @@ class FirestoreService {
     return _itemsCol(coupleId)
         .where('date', isEqualTo: dateKey)
         .where('type', isEqualTo: type.name)
-        .where('deletedAt', isNull: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map(Item.fromDoc).toList());
+        .map((snap) => snap.docs
+            .map(Item.fromDoc)
+            .where((item) => item.toMap()['deletedAt'] == null)
+            .toList());
   }
 
   /// 월간 이벤트 개수 (캘린더 마커용)
@@ -36,11 +38,11 @@ class FirestoreService {
         .where('type', isEqualTo: 'event')
         .where('date', isGreaterThanOrEqualTo: firstDay)
         .where('date', isLessThanOrEqualTo: lastDay)
-        .where('deletedAt', isNull: true)
         .snapshots()
         .map((snap) {
       final counts = <String, int>{};
       for (final doc in snap.docs) {
+        if (doc.data()['deletedAt'] != null) continue;
         final d = doc.data()['date'] as String;
         counts[d] = (counts[d] ?? 0) + 1;
       }
