@@ -47,7 +47,8 @@ class WesynkApp extends ConsumerWidget {
 class _AuthGate extends ConsumerWidget {
   const _AuthGate();
 
-  static const _bypassAuth = false;
+  // TODO: iOS 네이티브에서 Google Sign-in 완성 후 false로
+  static const _bypassAuth = true;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,6 +70,7 @@ class _AuthGate extends ConsumerWidget {
         body: Center(child: Text('${S.error}: $e')),
       ),
       data: (user) {
+        debugPrint('[AuthGate] user=${user?.email ?? 'null'}');
         if (user == null) return const LoginPage();
         return const HomePage();
       },

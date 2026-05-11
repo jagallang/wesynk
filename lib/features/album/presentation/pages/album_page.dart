@@ -10,7 +10,8 @@ class AlbumPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final photosAsync = ref.watch(drivePhotosProvider);
+    final authService = ref.read(authServiceProvider);
+    final hasToken = authService.accessToken != null;
 
     return SafeArea(
       child: Column(
@@ -34,48 +35,9 @@ class AlbumPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: photosAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.grey),
-                    const SizedBox(height: 12),
-                    Text('${S.error}: $e',
-                        style: const TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () =>
-                          ref.invalidate(drivePhotosProvider),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (photos) {
-                if (photos.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.photo_library_outlined,
-                            size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(S.albumEmpty,
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 16)),
-                      ],
-                    ),
-                  );
-                }
-
-                return _PhotoGrid(photos: photos, ref: ref);
-              },
-            ),
+            child: hasToken
+                ? _PhotosView(ref: ref)
+                : _ConnectDriveView(ref: ref),
           ),
         ],
       ),
@@ -83,33 +45,114 @@ class AlbumPage extends ConsumerWidget {
   }
 }
 
-class _PhotoGrid extends StatelessWidget {
-  final List<DrivePhoto> photos;
+/// Drive 토큰이 없을 때 → 연결 버튼
+class _ConnectDriveView extends StatelessWidget {
   final WidgetRef ref;
-
-  const _PhotoGrid({required this.photos, required this.ref});
+  const _ConnectDriveView({required this.ref});
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(4),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_outlined,
+              size: 64, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            S.isKo ? 'Google Drive 연결 필요' : 'Connect Google Drive',
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            S.isKo
+                ? '사진을 보려면 Drive 접근 권한이 필요합니다'
+                : 'Drive access is needed to view photos',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () async {
+              await ref.read(authServiceProvider).signInWithGoogle();
+              ref.invalidate(drivePhotosProvider);
+            },
+            icon: const Icon(Icons.login),
+            label: Text(S.isKo ? 'Drive 연결하기' : 'Connect Drive'),
+          ),
+        ],
       ),
-      itemCount: photos.length,
-      itemBuilder: (context, i) {
-        final photo = photos[i];
-        return GestureDetector(
-          onTap: () => _showPhotoDetail(context, photo),
-          child: _PhotoThumbnail(photo: photo, ref: ref),
+    );
+  }
+}
+
+/// Drive 사진 그리드
+class _PhotosView extends ConsumerWidget {
+  final WidgetRef ref;
+  const _PhotosView({required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final photosAsync = widgetRef.watch(drivePhotosProvider);
+
+    return photosAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text('${S.error}: $e',
+                style: const TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => widgetRef.invalidate(drivePhotosProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (photos) {
+        if (photos.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.photo_library_outlined,
+                    size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(S.albumEmpty,
+                    style:
+                        const TextStyle(color: Colors.grey, fontSize: 16)),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(4),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
+          ),
+          itemCount: photos.length,
+          itemBuilder: (context, i) {
+            final photo = photos[i];
+            return GestureDetector(
+              onTap: () => _showDetail(context, widgetRef, photo),
+              child: _Thumb(photo: photo, ref: widgetRef),
+            );
+          },
         );
       },
     );
   }
 
-  void _showPhotoDetail(BuildContext context, DrivePhoto photo) {
+  void _showDetail(
+      BuildContext context, WidgetRef ref, DrivePhoto photo) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -128,8 +171,8 @@ class _PhotoGrid extends StatelessWidget {
                   photo.thumbnailUrl(size: 800),
                   headers: snap.data!,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, e, __) =>
-                      const SizedBox(height: 200, child: Icon(Icons.broken_image)),
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                      height: 200, child: Icon(Icons.broken_image)),
                 );
               },
             ),
@@ -138,9 +181,11 @@ class _PhotoGrid extends StatelessWidget {
               child: Column(
                 children: [
                   Text(photo.name,
-                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.w500)),
                   Text(photo.date,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      style: const TextStyle(
+                          color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),
@@ -151,36 +196,32 @@ class _PhotoGrid extends StatelessWidget {
   }
 }
 
-class _PhotoThumbnail extends StatelessWidget {
+class _Thumb extends StatelessWidget {
   final DrivePhoto photo;
   final WidgetRef ref;
-
-  const _PhotoThumbnail({required this.photo, required this.ref});
+  const _Thumb({required this.photo, required this.ref});
 
   @override
   Widget build(BuildContext context) {
-    if (photo.thumbnailLink != null) {
-      return FutureBuilder<Map<String, String>?>(
-        future: ref.read(authServiceProvider).getAuthHeaders(),
-        builder: (context, snap) {
-          if (!snap.hasData || snap.data == null) {
-            return Container(color: Colors.grey.shade200);
-          }
-          return Image.network(
-            photo.thumbnailUrl(size: 300),
-            headers: snap.data!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image),
-            ),
-          );
-        },
-      );
+    if (photo.thumbnailLink == null) {
+      return Container(
+          color: Colors.grey.shade200, child: const Icon(Icons.photo));
     }
-    return Container(
-      color: Colors.grey.shade200,
-      child: const Icon(Icons.photo),
+    return FutureBuilder<Map<String, String>?>(
+      future: ref.read(authServiceProvider).getAuthHeaders(),
+      builder: (context, snap) {
+        if (!snap.hasData || snap.data == null) {
+          return Container(color: Colors.grey.shade200);
+        }
+        return Image.network(
+          photo.thumbnailUrl(size: 300),
+          headers: snap.data!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+              color: Colors.grey.shade200,
+              child: const Icon(Icons.broken_image)),
+        );
+      },
     );
   }
 }

@@ -2,7 +2,8 @@
   "hosting": {
     "public": "build/web",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [{"source": "**", "destination": "/index.html"}]
+    "rewrites": [{"source": "**", "destination": "/index.html"}],
+    "headers": []
   },
   "firestore": {
     "rules": "firestore.rules",
