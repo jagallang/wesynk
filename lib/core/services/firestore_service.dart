@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/models/item_model.dart';
@@ -198,5 +199,78 @@ class FirestoreService {
     }
     await batch.commit();
     debugPrint('[FirestoreService] seedSampleData: ${samples.length}건 생성');
+  }
+
+  // ─── 초대 시스템 ───
+
+  /// 6자리 초대 코드 생성
+  String _generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rng = Random.secure();
+    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
+  }
+
+  /// 초대 코드 생성 + Firestore 저장
+  Future<String> createInvite({required String coupleId}) async {
+    final code = _generateCode();
+    await _db.collection('invites').doc(code).set({
+      'coupleId': coupleId,
+      'createdBy': 'me',
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+      'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(hours: 24))),
+      'acceptedBy': null,
+    });
+    debugPrint('[FirestoreService] invite created: $code → $coupleId');
+    return code;
+  }
+
+  /// 초대 코드 검증 + 수락
+  Future<String?> acceptInvite({required String code}) async {
+    final doc = _db.collection('invites').doc(code.toUpperCase());
+    final snap = await doc.get();
+
+    if (!snap.exists) {
+      debugPrint('[FirestoreService] invite not found: $code');
+      return null;
+    }
+
+    final data = snap.data()!;
+    final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+    if (DateTime.now().isAfter(expiresAt)) {
+      debugPrint('[FirestoreService] invite expired: $code');
+      return null;
+    }
+
+    if (data['acceptedBy'] != null) {
+      debugPrint('[FirestoreService] invite already used: $code');
+      return null;
+    }
+
+    final coupleId = data['coupleId'] as String;
+    await doc.update({
+      'acceptedBy': 'partner',
+      'acceptedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    debugPrint('[FirestoreService] invite accepted: $code → $coupleId');
+    return coupleId;
+  }
+
+  /// 현재 coupleId의 초대 코드 조회 (활성 상태만)
+  Future<String?> getActiveInvite(String coupleId) async {
+    final snap = await _db
+        .collection('invites')
+        .where('coupleId', isEqualTo: coupleId)
+        .where('acceptedBy', isNull: true)
+        .get();
+
+    for (final doc in snap.docs) {
+      final expiresAt = (doc.data()['expiresAt'] as Timestamp).toDate();
+      if (DateTime.now().isBefore(expiresAt)) {
+        return doc.id;
+      }
+    }
+    return null;
   }
 }

@@ -57,33 +57,23 @@ class AuthService {
     if (_accessToken != null) {
       return {'Authorization': 'Bearer $_accessToken'};
     }
-
-    // silent sign-in으로 토큰 복구 시도
-    try {
-      final googleUser = await _googleSignIn.signInSilently();
-      if (googleUser != null) {
-        final auth = await googleUser.authentication;
-        _accessToken = auth.accessToken;
-        debugPrint('[AuthService] silent refresh: token=${_accessToken != null}');
-        return {'Authorization': 'Bearer $_accessToken'};
-      }
-    } catch (e) {
-      debugPrint('[AuthService] silent refresh error: $e');
-    }
-
     debugPrint('[AuthService] no access token');
     return null;
   }
 
-  /// 앱 시작 시 Drive 토큰 자동 복구
+  /// 앱 시작 시 Drive 토큰 자동 복구 (3초 타임아웃)
   Future<void> handleRedirectResult() async {
     if (_auth.currentUser != null && _accessToken == null) {
       try {
-        final googleUser = await _googleSignIn.signInSilently();
+        final googleUser = await _googleSignIn
+            .signInSilently()
+            .timeout(const Duration(seconds: 3), onTimeout: () => null);
         if (googleUser != null) {
           final auth = await googleUser.authentication;
           _accessToken = auth.accessToken;
           debugPrint('[AuthService] auto restore: token=${_accessToken != null}');
+        } else {
+          debugPrint('[AuthService] auto restore: silent sign-in returned null');
         }
       } catch (e) {
         debugPrint('[AuthService] auto restore error: $e');

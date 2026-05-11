@@ -78,7 +78,25 @@ class S {
       isKo ? '로그인 후 표시됩니다' : 'Shown after sign in';
   static String get partner => isKo ? '파트너' : 'Partner';
   static String get partnerPlaceholder =>
-      isKo ? '페어링 후 표시됩니다' : 'Shown after pairing';
+      isKo ? '파트너를 초대하세요' : 'Invite your partner';
+  static String get invitePartner => isKo ? '파트너 초대' : 'Invite Partner';
+  static String get inviteDesc =>
+      isKo ? '초대 링크를 파트너에게 공유하면 같은 공간을 사용할 수 있습니다'
+          : 'Share the invite link with your partner to share the same space';
+  static String get createInvite => isKo ? '초대 링크 생성' : 'Create Invite Link';
+  static String get copyLink => isKo ? '링크 복사' : 'Copy Link';
+  static String get linkCopied => isKo ? '링크가 복사되었습니다' : 'Link copied';
+  static String get shareLink => isKo ? '링크 공유' : 'Share Link';
+  static String get inviteCode => isKo ? '초대 코드' : 'Invite Code';
+  static String get enterInviteCode => isKo ? '초대 코드 입력' : 'Enter Invite Code';
+  static String get enterCodeHint => isKo ? '6자리 코드' : '6-digit code';
+  static String get joinPartner => isKo ? '파트너 연결' : 'Join Partner';
+  static String get inviteExpired => isKo ? '만료된 초대입니다' : 'Invite expired';
+  static String get inviteInvalid => isKo ? '잘못된 초대 코드입니다' : 'Invalid invite code';
+  static String get inviteSuccess => isKo ? '파트너 연결 성공!' : 'Partner connected!';
+  static String get partnerConnected => isKo ? '파트너 연결됨' : 'Partner connected';
+  static String get inviteExpiresIn => isKo ? '24시간 후 만료' : 'Expires in 24h';
+  static String get orEnterCode => isKo ? '또는 코드 직접 입력' : 'Or enter code manually';
   static String get customize => isKo ? '앱 꾸미기' : 'Customize';
   static String get appNameSetting => isKo ? '앱 이름' : 'App Name';
   static String get appIcon => isKo ? '앱 아이콘' : 'App Icon';

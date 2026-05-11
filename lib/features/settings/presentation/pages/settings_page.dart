@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../security/presentation/pages/pin_screen.dart';
@@ -44,18 +46,7 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // 파트너
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.grey.shade300,
-                child: const Icon(Icons.favorite, color: Colors.white),
-              ),
-              title: Text(S.partner),
-              subtitle: Text(S.partnerPlaceholder),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-          ),
+          _PartnerCard(),
           const SizedBox(height: 24),
 
           // ─── 언어 ───
@@ -438,5 +429,236 @@ class _SecurityCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+class _PartnerCard extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_PartnerCard> createState() => _PartnerCardState();
+}
+
+class _PartnerCardState extends ConsumerState<_PartnerCard> {
+  String? _inviteCode;
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final coupleId = ref.watch(coupleIdProvider);
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  child: Icon(Icons.favorite, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(S.partner,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(S.partnerPlaceholder,
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(S.inviteDesc,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+
+            // 초대 링크 생성 버튼
+            if (_inviteCode == null)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _loading ? null : _createInvite,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.link),
+                  label: Text(S.createInvite),
+                ),
+              )
+            else ...[
+              // 초대 코드 표시
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Text(S.inviteCode,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                    const SizedBox(height: 4),
+                    Text(
+                      _inviteCode!,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(S.inviteExpiresIn,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _copyLink(coupleId),
+                      icon: const Icon(Icons.copy, size: 18),
+                      label: Text(S.copyLink),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+
+            // 코드 직접 입력
+            Text(S.orEnterCode,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            _InviteCodeInput(onAccepted: (newCoupleId) {
+              ref.read(coupleIdProvider.notifier).state = newCoupleId;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(S.inviteSuccess)),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createInvite() async {
+    setState(() => _loading = true);
+    try {
+      final coupleId = ref.read(coupleIdProvider);
+      final service = ref.read(firestoreServiceProvider);
+
+      // 기존 활성 초대 확인
+      var code = await service.getActiveInvite(coupleId);
+      code ??= await service.createInvite(coupleId: coupleId);
+
+      setState(() => _inviteCode = code);
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _copyLink(String coupleId) {
+    final link = 'https://wesynk-app.web.app?invite=$_inviteCode';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(S.linkCopied)),
+    );
+  }
+}
+
+class _InviteCodeInput extends StatefulWidget {
+  final ValueChanged<String> onAccepted;
+  const _InviteCodeInput({required this.onAccepted});
+
+  @override
+  State<_InviteCodeInput> createState() => _InviteCodeInputState();
+}
+
+class _InviteCodeInputState extends State<_InviteCodeInput> {
+  final _controller = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            maxLength: 6,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              hintText: S.enterCodeHint,
+              border: const OutlineInputBorder(),
+              counterText: '',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: _loading ? null : _accept,
+          child: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : Text(S.joinPartner),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _accept() async {
+    final code = _controller.text.trim().toUpperCase();
+    if (code.length != 6) return;
+
+    setState(() => _loading = true);
+    try {
+      final service = FirestoreService();
+      final coupleId = await service.acceptInvite(code: code);
+
+      if (coupleId != null) {
+        widget.onAccepted(coupleId);
+        _controller.clear();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(S.inviteInvalid)),
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }

@@ -80,6 +80,11 @@ final firestoreServiceProvider = Provider<FirestoreService>(
   (ref) => FirestoreService(),
 );
 
+/// 현재 coupleId (초대 수락 시 동적 변경)
+final coupleIdProvider = StateProvider<String>(
+  (ref) => FirestoreService.defaultCoupleId,
+);
+
 /// 현재 선택된 날짜
 final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
