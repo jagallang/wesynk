@@ -1,34 +1,41 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../../shared/models/item_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// 바이패스 모드에서 사용할 기본 coupleId
-  /// TODO: 실제 페어링 구현 후 동적으로 변경
   static const defaultCoupleId = 'default-couple';
 
   CollectionReference<Map<String, dynamic>> _itemsCol(String coupleId) =>
       _db.collection('couples').doc(coupleId).collection('items');
 
   /// 특정 날짜 + 타입의 아이템 실시간 스트림
+  /// 단순 쿼리 (date만 필터) + 클라이언트에서 type 필터/정렬
   Stream<List<Item>> itemsStream({
     required String coupleId,
     required String dateKey,
     required ItemType type,
   }) {
+    debugPrint('[FirestoreService] itemsStream: date=$dateKey, type=${type.name}');
     return _itemsCol(coupleId)
         .where('date', isEqualTo: dateKey)
-        .where('type', isEqualTo: type.name)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map(Item.fromDoc)
-            .where((item) => item.toMap()['deletedAt'] == null)
-            .toList());
+        .map((snap) {
+      debugPrint('[FirestoreService] got ${snap.docs.length} docs for date=$dateKey');
+      final items = snap.docs
+          .map(Item.fromDoc)
+          .where((item) => item.type == type)
+          .where((item) => item.toMap()['deletedAt'] == null)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      debugPrint('[FirestoreService] filtered to ${items.length} items for type=${type.name}');
+      return items;
+    });
   }
 
   /// 월간 이벤트 개수 (캘린더 마커용)
+  /// 단순 쿼리 (type만 필터) + 클라이언트에서 날짜 범위 필터
   Stream<Map<String, int>> eventCountsStream({
     required String coupleId,
     required String firstDay,
@@ -36,15 +43,16 @@ class FirestoreService {
   }) {
     return _itemsCol(coupleId)
         .where('type', isEqualTo: 'event')
-        .where('date', isGreaterThanOrEqualTo: firstDay)
-        .where('date', isLessThanOrEqualTo: lastDay)
         .snapshots()
         .map((snap) {
       final counts = <String, int>{};
       for (final doc in snap.docs) {
-        if (doc.data()['deletedAt'] != null) continue;
-        final d = doc.data()['date'] as String;
-        counts[d] = (counts[d] ?? 0) + 1;
+        final data = doc.data();
+        if (data['deletedAt'] != null) continue;
+        final d = data['date'] as String? ?? '';
+        if (d.compareTo(firstDay) >= 0 && d.compareTo(lastDay) <= 0) {
+          counts[d] = (counts[d] ?? 0) + 1;
+        }
       }
       return counts;
     });
@@ -55,7 +63,9 @@ class FirestoreService {
     required String coupleId,
     required Item item,
   }) async {
+    debugPrint('[FirestoreService] addItem: type=${item.type.name}, date=${item.date}');
     await _itemsCol(coupleId).add(item.toMap());
+    debugPrint('[FirestoreService] addItem: 성공');
   }
 
   /// 아이템 삭제 (soft delete)
@@ -84,15 +94,16 @@ class FirestoreService {
   Future<void> seedSampleData(String coupleId) async {
     final col = _itemsCol(coupleId);
     final existing = await col.limit(1).get();
-    if (existing.docs.isNotEmpty) return; // 이미 데이터 있으면 스킵
+    if (existing.docs.isNotEmpty) return;
 
     final today = DateTime.now();
-    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final yesterday = today.subtract(const Duration(days: 1));
-    final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+    final yesterdayStr =
+        '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
 
     final samples = [
-      // 오늘 일정
       {
         'type': 'event',
         'date': todayStr,
@@ -106,24 +117,24 @@ class FirestoreService {
           'allDay': false,
         },
       },
-      // 오늘 메모
       {
         'type': 'note',
         'date': todayStr,
         'createdBy': 'me',
-        'createdAt': Timestamp.fromDate(today.subtract(const Duration(hours: 1))),
+        'createdAt': Timestamp.fromDate(
+            today.subtract(const Duration(hours: 1))),
         'deletedAt': null,
         'payload': {
           'body': '오늘 날씨가 너무 좋았다. 같이 산책하고 싶다.',
           'mood': '😊',
         },
       },
-      // 오늘 우리맛집
       {
         'type': 'date',
         'date': todayStr,
         'createdBy': 'me',
-        'createdAt': Timestamp.fromDate(today.subtract(const Duration(hours: 2))),
+        'createdAt': Timestamp.fromDate(
+            today.subtract(const Duration(hours: 2))),
         'deletedAt': null,
         'payload': {
           'title': '성수동 카페 투어',
@@ -133,7 +144,6 @@ class FirestoreService {
           'review': '케이크가 진짜 맛있었음',
         },
       },
-      // 어제 일정
       {
         'type': 'event',
         'date': yesterdayStr,
@@ -147,12 +157,12 @@ class FirestoreService {
           'allDay': false,
         },
       },
-      // 어제 메모
       {
         'type': 'note',
         'date': yesterdayStr,
         'createdBy': 'me',
-        'createdAt': Timestamp.fromDate(yesterday.subtract(const Duration(hours: 1))),
+        'createdAt': Timestamp.fromDate(
+            yesterday.subtract(const Duration(hours: 1))),
         'deletedAt': null,
         'payload': {
           'body': '같이 본 영화가 재밌었다!',
@@ -166,5 +176,6 @@ class FirestoreService {
       batch.set(col.doc(), data);
     }
     await batch.commit();
+    debugPrint('[FirestoreService] seedSampleData: ${samples.length}건 생성');
   }
 }
