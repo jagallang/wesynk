@@ -75,8 +75,20 @@ class AuthService {
     return null;
   }
 
+  /// 앱 시작 시 Drive 토큰 자동 복구
   Future<void> handleRedirectResult() async {
-    // google_sign_in 방식에서는 불필요
+    if (_auth.currentUser != null && _accessToken == null) {
+      try {
+        final googleUser = await _googleSignIn.signInSilently();
+        if (googleUser != null) {
+          final auth = await googleUser.authentication;
+          _accessToken = auth.accessToken;
+          debugPrint('[AuthService] auto restore: token=${_accessToken != null}');
+        }
+      } catch (e) {
+        debugPrint('[AuthService] auto restore error: $e');
+      }
+    }
   }
 
   Future<void> signOut() async {

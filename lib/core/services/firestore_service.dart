@@ -26,7 +26,7 @@ class FirestoreService {
       final items = snap.docs
           .map(Item.fromDoc)
           .where((item) => item.type == type)
-          .where((item) => item.toMap()['deletedAt'] == null)
+          .where((item) => item.deletedAt == null)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       debugPrint('[FirestoreService] filtered to ${items.length} items for type=${type.name}');

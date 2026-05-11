@@ -35,6 +35,7 @@ class Item {
   final DateTime createdAt;
   final Map<String, dynamic> payload;
   final bool checked;
+  final DateTime? deletedAt;
 
   const Item({
     required this.id,
@@ -44,6 +45,7 @@ class Item {
     required this.createdAt,
     required this.payload,
     this.checked = false,
+    this.deletedAt,
   });
 
   factory Item.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -59,6 +61,7 @@ class Item {
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       payload: Map<String, dynamic>.from(d['payload'] as Map? ?? {}),
       checked: d['checked'] as bool? ?? false,
+      deletedAt: (d['deletedAt'] as Timestamp?)?.toDate(),
     );
   }
 
