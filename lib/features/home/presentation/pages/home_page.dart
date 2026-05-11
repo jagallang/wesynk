@@ -8,6 +8,8 @@ import 'package:wesync_chat/wesync_chat.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../album/presentation/pages/album_page.dart';
+import '../../../security/presentation/pages/pin_screen.dart';
+import '../../../security/presentation/providers/security_provider.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../providers/home_providers.dart';
 import '../widgets/day_tab_content.dart';
@@ -21,20 +23,66 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
   int _navIndex = 0;
+  DateTime _lastActivity = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: tabOrder.length, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAutoLock();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _lastActivity = DateTime.now();
+    }
+  }
+
+  void _checkAutoLock() {
+    final security = ref.read(securityProvider);
+    if (!security.pinEnabled) return;
+    if (security.autoLockDuration == AutoLockDuration.off) return;
+
+    final elapsed = DateTime.now().difference(_lastActivity).inSeconds;
+    if (elapsed >= security.autoLockDuration.seconds) {
+      ref.read(isUnlockedProvider.notifier).state = false;
+    }
+  }
+
+  void _onTabSelected(int i) {
+    final security = ref.read(securityProvider);
+
+    if (security.pinEnabled && security.lockOnTabSwitch && i != _navIndex) {
+      Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PinScreen(
+            mode: PinMode.confirm,
+            onSuccess: () {
+              Navigator.of(context).pop();
+              setState(() => _navIndex = i);
+              _lastActivity = DateTime.now();
+            },
+          ),
+        ),
+      );
+    } else {
+      setState(() => _navIndex = i);
+      _lastActivity = DateTime.now();
+    }
   }
 
   @override
@@ -74,7 +122,7 @@ class _HomePageState extends ConsumerState<HomePage>
           NavigationDestination(
               icon: const Icon(Icons.settings), label: S.navSettings),
         ],
-        onDestinationSelected: (i) => setState(() => _navIndex = i),
+        onDestinationSelected: _onTabSelected,
       ),
     );
   }

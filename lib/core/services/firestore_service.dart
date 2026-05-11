@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/models/item_model.dart';
@@ -201,76 +200,98 @@ class FirestoreService {
     debugPrint('[FirestoreService] seedSampleData: ${samples.length}건 생성');
   }
 
-  // ─── 초대 시스템 ───
+  // ─── 이메일 페어링 시스템 ───
 
-  /// 6자리 초대 코드 생성
-  String _generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rng = Random.secure();
-    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
-  }
-
-  /// 초대 코드 생성 + Firestore 저장
-  Future<String> createInvite({required String coupleId}) async {
-    final code = _generateCode();
-    await _db.collection('invites').doc(code).set({
+  /// 페어링 요청 보내기 (내 이메일 → 파트너 이메일)
+  Future<void> requestPairing({
+    required String myEmail,
+    required String partnerEmail,
+    required String coupleId,
+  }) async {
+    await _db.collection('pairing_requests').doc(partnerEmail).set({
+      'fromEmail': myEmail,
+      'toEmail': partnerEmail,
       'coupleId': coupleId,
-      'createdBy': 'me',
+      'status': 'pending',
       'createdAt': Timestamp.fromDate(DateTime.now()),
-      'expiresAt': Timestamp.fromDate(
-          DateTime.now().add(const Duration(hours: 24))),
-      'acceptedBy': null,
     });
-    debugPrint('[FirestoreService] invite created: $code → $coupleId');
-    return code;
+    debugPrint('[FirestoreService] pairing request: $myEmail → $partnerEmail');
   }
 
-  /// 초대 코드 검증 + 수락
-  Future<String?> acceptInvite({required String code}) async {
-    final doc = _db.collection('invites').doc(code.toUpperCase());
-    final snap = await doc.get();
+  /// 내게 온 페어링 요청 확인
+  Future<Map<String, dynamic>?> getPairingRequest(String myEmail) async {
+    final doc = await _db.collection('pairing_requests').doc(myEmail).get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+    if (data['status'] != 'pending') return null;
+    return data;
+  }
 
-    if (!snap.exists) {
-      debugPrint('[FirestoreService] invite not found: $code');
-      return null;
-    }
+  /// 페어링 요청 스트림 (실시간 감시)
+  Stream<Map<String, dynamic>?> pairingRequestStream(String myEmail) {
+    return _db
+        .collection('pairing_requests')
+        .doc(myEmail)
+        .snapshots()
+        .map((snap) {
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['status'] != 'pending') return null;
+      return data;
+    });
+  }
+
+  /// 페어링 수락
+  Future<String?> acceptPairing(String myEmail) async {
+    final doc = _db.collection('pairing_requests').doc(myEmail);
+    final snap = await doc.get();
+    if (!snap.exists) return null;
 
     final data = snap.data()!;
-    final expiresAt = (data['expiresAt'] as Timestamp).toDate();
-    if (DateTime.now().isAfter(expiresAt)) {
-      debugPrint('[FirestoreService] invite expired: $code');
-      return null;
-    }
-
-    if (data['acceptedBy'] != null) {
-      debugPrint('[FirestoreService] invite already used: $code');
-      return null;
-    }
-
     final coupleId = data['coupleId'] as String;
+
+    // 수락 상태로 업데이트
     await doc.update({
-      'acceptedBy': 'partner',
+      'status': 'accepted',
       'acceptedAt': Timestamp.fromDate(DateTime.now()),
     });
 
-    debugPrint('[FirestoreService] invite accepted: $code → $coupleId');
+    // couples 문서에 멤버 추가
+    await _db.collection('couples').doc(coupleId).set({
+      'members': [data['fromEmail'], myEmail],
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    }, SetOptions(merge: true));
+
+    debugPrint('[FirestoreService] pairing accepted: $coupleId');
     return coupleId;
   }
 
-  /// 현재 coupleId의 초대 코드 조회 (활성 상태만)
-  Future<String?> getActiveInvite(String coupleId) async {
-    final snap = await _db
-        .collection('invites')
-        .where('coupleId', isEqualTo: coupleId)
-        .where('acceptedBy', isNull: true)
-        .get();
+  /// 페어링 거부
+  Future<void> rejectPairing(String myEmail) async {
+    await _db.collection('pairing_requests').doc(myEmail).update({
+      'status': 'rejected',
+    });
+  }
 
-    for (final doc in snap.docs) {
-      final expiresAt = (doc.data()['expiresAt'] as Timestamp).toDate();
-      if (DateTime.now().isBefore(expiresAt)) {
-        return doc.id;
-      }
-    }
-    return null;
+  /// 내가 보낸 페어링 요청 상태 확인
+  Stream<String?> sentPairingStatusStream(String partnerEmail) {
+    return _db
+        .collection('pairing_requests')
+        .doc(partnerEmail)
+        .snapshots()
+        .map((snap) {
+      if (!snap.exists) return null;
+      return snap.data()?['status'] as String?;
+    });
+  }
+
+  /// 페어링 해제
+  Future<void> disconnectPairing({
+    required String myEmail,
+    required String partnerEmail,
+  }) async {
+    // 양쪽 요청 삭제
+    await _db.collection('pairing_requests').doc(myEmail).delete();
+    await _db.collection('pairing_requests').doc(partnerEmail).delete();
   }
 }

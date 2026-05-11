@@ -6,9 +6,22 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 final driveServiceProvider = Provider<DriveService>((ref) => DriveService());
 
 /// Drive 사진 전체 목록 (앨범용)
+/// 토큰이 없으면 자동으로 signIn 시도
 final drivePhotosProvider = FutureProvider<List<DrivePhoto>>((ref) async {
   final authService = ref.read(authServiceProvider);
-  final headers = await authService.getAuthHeaders();
+  var headers = await authService.getAuthHeaders();
+
+  // 토큰 없으면 자동 로그인 시도
+  if (headers == null) {
+    debugPrint('[DriveProvider] no token, trying auto signIn...');
+    try {
+      await authService.signInWithGoogle();
+      headers = await authService.getAuthHeaders();
+    } catch (e) {
+      debugPrint('[DriveProvider] auto signIn error: $e');
+    }
+  }
+
   debugPrint('[DriveProvider] headers=${headers != null}');
   if (headers == null) return [];
 

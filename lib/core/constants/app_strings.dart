@@ -78,25 +78,25 @@ class S {
       isKo ? '로그인 후 표시됩니다' : 'Shown after sign in';
   static String get partner => isKo ? '파트너' : 'Partner';
   static String get partnerPlaceholder =>
-      isKo ? '파트너를 초대하세요' : 'Invite your partner';
-  static String get invitePartner => isKo ? '파트너 초대' : 'Invite Partner';
-  static String get inviteDesc =>
-      isKo ? '초대 링크를 파트너에게 공유하면 같은 공간을 사용할 수 있습니다'
-          : 'Share the invite link with your partner to share the same space';
-  static String get createInvite => isKo ? '초대 링크 생성' : 'Create Invite Link';
-  static String get copyLink => isKo ? '링크 복사' : 'Copy Link';
-  static String get linkCopied => isKo ? '링크가 복사되었습니다' : 'Link copied';
-  static String get shareLink => isKo ? '링크 공유' : 'Share Link';
-  static String get inviteCode => isKo ? '초대 코드' : 'Invite Code';
-  static String get enterInviteCode => isKo ? '초대 코드 입력' : 'Enter Invite Code';
-  static String get enterCodeHint => isKo ? '6자리 코드' : '6-digit code';
-  static String get joinPartner => isKo ? '파트너 연결' : 'Join Partner';
-  static String get inviteExpired => isKo ? '만료된 초대입니다' : 'Invite expired';
-  static String get inviteInvalid => isKo ? '잘못된 초대 코드입니다' : 'Invalid invite code';
-  static String get inviteSuccess => isKo ? '파트너 연결 성공!' : 'Partner connected!';
+      isKo ? '파트너 이메일을 등록하세요' : 'Register partner email';
+  static String get pairingDesc =>
+      isKo ? '서로의 Gmail 주소를 입력하면 같은 공간을 공유합니다'
+          : 'Enter each other\'s Gmail to share the same space';
+  static String get myEmail => isKo ? '내 이메일' : 'My Email';
+  static String get partnerEmail => isKo ? '파트너 이메일' : 'Partner Email';
+  static String get partnerEmailHint => isKo ? 'partner@gmail.com' : 'partner@gmail.com';
+  static String get requestPairing => isKo ? '페어링 요청' : 'Request Pairing';
+  static String get pairingPending =>
+      isKo ? '파트너의 수락을 기다리는 중...' : 'Waiting for partner to accept...';
+  static String get acceptPairing => isKo ? '페어링 수락' : 'Accept Pairing';
+  static String get rejectPairing => isKo ? '거부' : 'Reject';
+  static String get pairingSuccess => isKo ? '페어링 성공!' : 'Paired successfully!';
+  static String get pairingFailed => isKo ? '페어링 실패' : 'Pairing failed';
+  static String get invalidEmail => isKo ? '올바른 이메일을 입력하세요' : 'Enter a valid email';
   static String get partnerConnected => isKo ? '파트너 연결됨' : 'Partner connected';
-  static String get inviteExpiresIn => isKo ? '24시간 후 만료' : 'Expires in 24h';
-  static String get orEnterCode => isKo ? '또는 코드 직접 입력' : 'Or enter code manually';
+  static String get disconnect => isKo ? '연결 해제' : 'Disconnect';
+  static String get pairingRequest =>
+      isKo ? '페어링 요청이 있습니다' : 'You have a pairing request';
   static String get customize => isKo ? '앱 꾸미기' : 'Customize';
   static String get appNameSetting => isKo ? '앱 이름' : 'App Name';
   static String get appIcon => isKo ? '앱 아이콘' : 'App Icon';
@@ -108,6 +108,13 @@ class S {
       isKo ? '앱 시작 시 4자리 비밀번호 입력' : '4-digit PIN on app launch';
   static String get appLockOff => isKo ? '꺼짐' : 'Off';
   static String get changePin => isKo ? '비밀번호 변경' : 'Change PIN';
+  static String get lockOnTabSwitch =>
+      isKo ? '탭 전환 시 잠금' : 'Lock on Tab Switch';
+  static String get lockOnTabSwitchDesc =>
+      isKo ? '캘린더/채팅/앨범/설정 이동 시 비밀번호 입력' : 'Require PIN when switching tabs';
+  static String get autoLock => isKo ? '자동 잠금' : 'Auto Lock';
+  static String get autoLockDesc =>
+      isKo ? '비활동 시 자동으로 잠금' : 'Lock after inactivity';
   static String get appInfo => isKo ? '앱 정보' : 'App Info';
   static String get logout => isKo ? '로그아웃' : 'Sign Out';
   static String get changeAppName => isKo ? '앱 이름 변경' : 'Change App Name';

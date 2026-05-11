@@ -3,7 +3,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wesync_chat/wesync_chat.dart' show CS;
 import 'core/constants/app_strings.dart';
-import 'core/services/firestore_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -11,7 +10,6 @@ import 'features/home/presentation/pages/home_page.dart';
 import 'features/home/presentation/providers/home_providers.dart';
 import 'features/security/presentation/pages/pin_screen.dart';
 import 'features/security/presentation/providers/security_provider.dart';
-import 'main.dart' show pendingInviteCode;
 
 class WesynkApp extends ConsumerWidget {
   const WesynkApp({super.key});
@@ -53,31 +51,6 @@ class _AuthGate extends ConsumerStatefulWidget {
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
   static const _bypassAuth = true;
-  bool _inviteHandled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _handlePendingInvite();
-  }
-
-  Future<void> _handlePendingInvite() async {
-    if (_inviteHandled || pendingInviteCode == null) return;
-    _inviteHandled = true;
-
-    final code = pendingInviteCode!;
-    pendingInviteCode = null;
-    debugPrint('[AuthGate] processing invite: $code');
-
-    final service = FirestoreService();
-    final coupleId = await service.acceptInvite(code: code);
-    if (coupleId != null && mounted) {
-      ref.read(coupleIdProvider.notifier).state = coupleId;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(S.inviteSuccess)),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
