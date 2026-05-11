@@ -97,7 +97,12 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 8),
 
           Card(
-            child: Column(
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              leading: Icon(Icons.palette_outlined,
+                  color: customization.themeColor),
+              title: Text(S.customize),
+              initiallyExpanded: false,
               children: [
                 ListTile(
                   leading:

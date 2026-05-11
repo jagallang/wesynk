@@ -68,6 +68,27 @@ class FirestoreService {
     debugPrint('[FirestoreService] addItem: 성공');
   }
 
+  /// 아이템 체크 토글
+  Future<void> toggleChecked({
+    required String coupleId,
+    required String itemId,
+    required bool checked,
+  }) async {
+    await _itemsCol(coupleId).doc(itemId).update({'checked': checked});
+  }
+
+  /// 아이템 수정 (payload 업데이트)
+  Future<void> updateItem({
+    required String coupleId,
+    required String itemId,
+    required Map<String, dynamic> payload,
+  }) async {
+    await _itemsCol(coupleId).doc(itemId).update({
+      'payload': payload,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
   /// 아이템 삭제 (soft delete)
   Future<void> deleteItem({
     required String coupleId,
