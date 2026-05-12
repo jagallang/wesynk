@@ -8,10 +8,10 @@ final photoServiceProvider = Provider<PhotoService>((ref) {
   return PhotoService(coupleId);
 });
 
-/// 전체 사진 스트림 (앨범용)
+/// 전체 사진 스트림 (앨범용) — createdAt 내림차순 정렬
 final allPhotosProvider = StreamProvider<List<PhotoItem>>((ref) {
   final service = ref.watch(photoServiceProvider);
-  return service.recentPhotos();
+  return service.recentPhotos(limit: 500);
 });
 
 /// 특정 날짜의 사진 스트림 (캘린더 사진탭용)

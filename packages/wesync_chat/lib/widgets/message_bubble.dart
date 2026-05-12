@@ -29,10 +29,12 @@ class MessageBubble extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: align,
-        children: [
-          GestureDetector(
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: align,
+          children: [
+            GestureDetector(
             onLongPress: onLongPress,
             child: Container(
               constraints: BoxConstraints(
@@ -102,7 +104,8 @@ class MessageBubble extends StatelessWidget {
                 }).toList(),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

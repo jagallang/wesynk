@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:async';
-import 'dart:js_interop';
+import 'package:exif/exif.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:web/web.dart' as web;
 
 // ─── PhotoItem 모델 ───
 
@@ -56,17 +55,89 @@ class PhotoItem {
     );
   }
 
-  /// 썸네일 경로 (extension 자동 생성 경로와 매칭)
   String thumbnailPath(int size) {
     final segments = storagePath.split('/');
     final filename = segments.last;
     final dotIdx = filename.lastIndexOf('.');
     final name = dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
     final ext = dotIdx > 0 ? filename.substring(dotIdx) : '';
-
     segments[segments.length - 2] = 'thumb_$size';
     segments[segments.length - 1] = '${name}_${size}x$size$ext';
     return segments.join('/');
+  }
+}
+
+// ─── PhotoItem 확장 (날짜별 그룹화용) ───
+
+extension PhotoItemDisplay on PhotoItem {
+  /// 그룹화·정렬 기준 날짜: takenAt(EXIF) > uploadedAt
+  DateTime get displayDate => takenAt ?? uploadedAt;
+
+  /// "YYYY-MM-DD" 키 (그룹 키로 사용)
+  DateTime get displayDateKey {
+    final d = displayDate;
+    return DateTime(d.year, d.month, d.day);
+  }
+}
+
+// ─── EXIF 메타데이터 추출 ───
+
+/// 사진 바이트에서 EXIF 메타데이터 추출.
+/// 추출 실패 시 빈 Map 반환 (앱 죽지 않음).
+Future<Map<String, dynamic>> extractPhotoMetadata(Uint8List bytes) async {
+  final result = <String, dynamic>{};
+
+  try {
+    final tags = await readExifFromBytes(bytes);
+    if (tags.isEmpty) return result;
+
+    // 이미지 크기
+    final widthTag = tags['EXIF ExifImageWidth']
+        ?? tags['Image ImageWidth']
+        ?? tags['EXIF PixelXDimension'];
+    final heightTag = tags['EXIF ExifImageLength']
+        ?? tags['Image ImageLength']
+        ?? tags['EXIF PixelYDimension'];
+
+    final widthValue = widthTag?.values.toList();
+    final heightValue = heightTag?.values.toList();
+
+    if (widthValue != null && widthValue.isNotEmpty) {
+      final w = widthValue.first;
+      if (w is int && w > 0) result['width'] = w;
+    }
+    if (heightValue != null && heightValue.isNotEmpty) {
+      final h = heightValue.first;
+      if (h is int && h > 0) result['height'] = h;
+    }
+
+    // 촬영일 (DateTimeOriginal 우선)
+    final dateTag = tags['EXIF DateTimeOriginal']
+        ?? tags['Image DateTime']
+        ?? tags['EXIF DateTimeDigitized'];
+
+    if (dateTag != null) {
+      final parsed = _parseExifDateTime(dateTag.printable);
+      if (parsed != null) result['takenAt'] = parsed;
+    }
+  } catch (e) {
+    debugPrint('[PhotoService] EXIF extraction failed: $e');
+  }
+
+  return result;
+}
+
+/// EXIF 날짜 문자열 파싱 ("YYYY:MM:DD HH:MM:SS")
+DateTime? _parseExifDateTime(String exifString) {
+  try {
+    if (exifString.length < 19) return null;
+    // "2026:05:11 14:30:45" → "2026-05-11 14:30:45"
+    final normalized = exifString
+        .replaceFirst(':', '-')
+        .replaceFirst(':', '-');
+    return DateTime.tryParse(normalized);
+  } catch (_) {
+    return null;
   }
 }
 
@@ -77,8 +148,7 @@ class PhotoService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  String get _myUid =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'me';
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? 'me';
 
   PhotoService(this.coupleId);
 
@@ -87,22 +157,20 @@ class PhotoService {
 
   // ─── 조회 ───
 
-  /// 전체 사진 (앨범용) — 단순 쿼리 + 클라이언트 정렬
-  Stream<List<PhotoItem>> recentPhotos({int limit = 100}) {
+  Stream<List<PhotoItem>> recentPhotos({int limit = 500}) {
     return _itemsCol
         .where('type', isEqualTo: 'photo')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snap) {
-      final items = snap.docs
+      return snap.docs
           .map(PhotoItem.fromDoc)
           .where((p) => p.deletedAt == null)
-          .toList()
-        ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-      return items.take(limit).toList();
+          .toList();
     });
   }
 
-  /// 특정 날짜의 사진 (캘린더 사진탭용)
   Stream<List<PhotoItem>> photosForDate(String dateKey) {
     return _itemsCol
         .where('date', isEqualTo: dateKey)
@@ -115,17 +183,25 @@ class PhotoService {
 
   // ─── 업로드 ───
 
-  /// 파일 선택 → 다중 선택 → 업로드 (웹 네이티브 input)
   Future<List<PhotoItem>> pickAndUpload({
     void Function(int done, int total)? onProgress,
   }) async {
-    final files = await _pickFiles();
+    const imageTypeGroup = XTypeGroup(
+      label: 'images',
+      extensions: ['jpg', 'jpeg', 'png', 'webp', 'heic'],
+      mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
+    );
+
+    final files = await openFiles(acceptedTypeGroups: [imageTypeGroup]);
     if (files.isEmpty) return [];
 
     final results = <PhotoItem>[];
     for (int i = 0; i < files.length; i++) {
+      final file = files[i];
       try {
-        final item = await _uploadOne(files[i].$1, files[i].$2);
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) continue;
+        final item = await _uploadOne(bytes, file.name);
         results.add(item);
         onProgress?.call(i + 1, files.length);
       } catch (e) {
@@ -135,55 +211,13 @@ class PhotoService {
     return results;
   }
 
-  /// 웹 네이티브 파일 선택 (input type=file)
-  Future<List<(Uint8List, String)>> _pickFiles() async {
-    final completer = Completer<List<(Uint8List, String)>>();
-    final input = web.HTMLInputElement()
-      ..type = 'file'
-      ..accept = 'image/*'
-      ..multiple = true;
-
-    input.onChange.listen((_) async {
-      final results = <(Uint8List, String)>[];
-      final fileList = input.files;
-      if (fileList != null) {
-        for (int i = 0; i < fileList.length; i++) {
-          final file = fileList.item(i);
-          if (file != null) {
-            final reader = web.FileReader();
-            final readerCompleter = Completer<Uint8List>();
-            reader.onLoadEnd.listen((_) {
-              final result = reader.result;
-              if (result != null) {
-                final jsBuffer = result as JSArrayBuffer;
-                final bytes = jsBuffer.toDart.asUint8List();
-                readerCompleter.complete(bytes);
-              } else {
-                readerCompleter.complete(Uint8List(0));
-              }
-            });
-            reader.readAsArrayBuffer(file);
-            final bytes = await readerCompleter.future;
-            if (bytes.isNotEmpty) {
-              results.add((bytes, file.name));
-            }
-          }
-        }
-      }
-      completer.complete(results);
-    });
-
-    input.click();
-    return completer.future;
-  }
-
   Future<PhotoItem> _uploadOne(Uint8List bytes, String fileName) async {
     final now = DateTime.now();
     final dateKey =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final photoId = const Uuid().v4();
 
-    // 확장자 추출 (파일명에서)
+    // 확장자 추출
     final dotIdx = fileName.lastIndexOf('.');
     String ext = 'jpg';
     if (dotIdx > 0) {
@@ -193,8 +227,7 @@ class PhotoService {
       }
     }
 
-    final storagePath =
-        'couples/$coupleId/photos/original/$photoId.$ext';
+    final storagePath = 'couples/$coupleId/photos/original/$photoId.$ext';
 
     // 1. Firestore 사전 문서
     final docRef = _itemsCol.doc(photoId);
@@ -212,9 +245,9 @@ class PhotoService {
       },
     });
 
-    // 2. Storage 업로드
-    final ref = _storage.ref(storagePath);
-    final task = await ref.putData(
+    // 2. Storage 업로드 + EXIF 추출 병렬
+    final storageRef = _storage.ref(storagePath);
+    final uploadFuture = storageRef.putData(
       bytes,
       SettableMetadata(
         contentType: _mimeForExt(ext),
@@ -225,13 +258,31 @@ class PhotoService {
         },
       ),
     );
+    final metadataFuture = extractPhotoMetadata(bytes);
+    final task = await uploadFuture;
+    final metadata = await metadataFuture;
 
-    // 3. Firestore 업데이트
-    await docRef.update({
+    debugPrint('[PhotoService] EXIF metadata: '
+        'w=${metadata['width']}, h=${metadata['height']}, '
+        'taken=${metadata['takenAt']}');
+
+    // 3. Firestore 업데이트 — 메타데이터 합치기
+    final updateData = <String, dynamic>{
       'payload.uploading': false,
       'payload.storagePath': storagePath,
       'payload.byteSize': task.totalBytes,
-    });
+    };
+    if (metadata['width'] != null) {
+      updateData['payload.width'] = metadata['width'];
+    }
+    if (metadata['height'] != null) {
+      updateData['payload.height'] = metadata['height'];
+    }
+    if (metadata['takenAt'] != null) {
+      updateData['payload.takenAt'] =
+          Timestamp.fromDate(metadata['takenAt'] as DateTime);
+    }
+    await docRef.update(updateData);
 
     debugPrint('[PhotoService] uploaded: $storagePath (${task.totalBytes} bytes)');
 
@@ -239,6 +290,9 @@ class PhotoService {
       id: photoId,
       storagePath: storagePath,
       mimeType: _mimeForExt(ext),
+      width: metadata['width'] as int?,
+      height: metadata['height'] as int?,
+      takenAt: metadata['takenAt'] as DateTime?,
       uploadedAt: now,
       byteSize: task.totalBytes,
       date: dateKey,
@@ -255,42 +309,33 @@ class PhotoService {
 
   // ─── URL ───
 
-  /// 썸네일 URL (그리드: 400, 상세: 800)
   Future<String> thumbnailUrl(PhotoItem photo, {int size = 400}) async {
     try {
       return await _storage.ref(photo.thumbnailPath(size)).getDownloadURL();
     } catch (_) {
-      // 썸네일 아직 생성 안 됨 → 원본 fallback
       return await _storage.ref(photo.storagePath).getDownloadURL();
     }
   }
 
-  /// 원본 URL
   Future<String> originalUrl(PhotoItem photo) async {
     return await _storage.ref(photo.storagePath).getDownloadURL();
   }
 
   // ─── 삭제 ───
 
-  /// 휴지통 (soft delete)
   Future<void> moveToTrash(String photoId) async {
     await _itemsCol.doc(photoId).update({
       'deletedAt': Timestamp.fromDate(DateTime.now()),
     });
   }
 
-  /// 복원
   Future<void> restoreFromTrash(String photoId) async {
-    await _itemsCol.doc(photoId).update({
-      'deletedAt': null,
-    });
+    await _itemsCol.doc(photoId).update({'deletedAt': null});
   }
 
-  /// 영구 삭제
   Future<void> permanentlyDelete(String photoId) async {
     final doc = await _itemsCol.doc(photoId).get();
     if (doc.data() == null) return;
-
     final photo = PhotoItem.fromDoc(doc);
     if (photo.storagePath.isNotEmpty) {
       await Future.wait([

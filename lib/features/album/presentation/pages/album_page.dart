@@ -1,15 +1,116 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
 
-class AlbumPage extends ConsumerWidget {
+class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlbumPage> createState() => _AlbumPageState();
+}
+
+class _AlbumPageState extends ConsumerState<AlbumPage> {
+  bool _selectMode = false;
+  final Set<String> _selected = {};
+
+  void _toggleSelect(String photoId) {
+    setState(() {
+      if (_selected.contains(photoId)) {
+        _selected.remove(photoId);
+        if (_selected.isEmpty) _selectMode = false;
+      } else {
+        _selected.add(photoId);
+      }
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selected.clear();
+    });
+  }
+
+  void _enterSelectMode() {
+    setState(() => _selectMode = true);
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selected.isEmpty) return;
+    final count = _selected.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(S.delete),
+        content: Text(S.isKo
+            ? '$count장을 삭제하시겠습니까?'
+            : 'Delete $count photos?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(S.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final service = ref.read(photoServiceProvider);
+    for (final id in _selected) {
+      await service.moveToTrash(id);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(S.isKo
+              ? '$count장 삭제됨'
+              : '$count photos deleted'),
+        ),
+      );
+    }
+    _exitSelectMode();
+  }
+
+  Future<void> _uploadPhotos() async {
+    try {
+      final service = ref.read(photoServiceProvider);
+      debugPrint('[Album] starting pickAndUpload...');
+      final results = await service.pickAndUpload(
+        onProgress: (done, total) {
+          debugPrint('[Album] uploading $done/$total');
+        },
+      );
+      debugPrint('[Album] upload done: ${results.length} photos');
+      if (results.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(S.isKo
+                ? '${results.length}장 업로드 완료'
+                : '${results.length} photos uploaded'),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Album] upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final photosAsync = ref.watch(allPhotosProvider);
     final photoService = ref.read(photoServiceProvider);
 
@@ -20,17 +121,42 @@ class AlbumPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
               children: [
-                Text(S.albumTitle,
+                if (_selectMode) ...[
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _exitSelectMode,
+                  ),
+                  Text(
+                    S.isKo
+                        ? '${_selected.length}장 선택'
+                        : '${_selected.length} selected',
                     style: Theme.of(context)
                         .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                // 업로드 버튼
-                IconButton(
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
-                  onPressed: () => _uploadPhotos(context, ref),
-                ),
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: _selected.isEmpty ? null : _deleteSelected,
+                  ),
+                ] else ...[
+                  Text(S.albumTitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _enterSelectMode,
+                    tooltip: S.isKo ? '사진 삭제' : 'Delete photos',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    onPressed: _uploadPhotos,
+                  ),
+                ],
               ],
             ),
           ),
@@ -45,11 +171,15 @@ class AlbumPage extends ConsumerWidget {
               ),
               data: (photos) {
                 if (photos.isEmpty) {
-                  return _EmptyAlbum(onUpload: () => _uploadPhotos(context, ref));
+                  return _EmptyAlbum(onUpload: _uploadPhotos);
                 }
-                return _PhotoGrid(
+                return _GroupedPhotoGrid(
                   photos: photos,
                   photoService: photoService,
+                  selectMode: _selectMode,
+                  selected: _selected,
+                  onToggleSelect: _toggleSelect,
+                  onEnterSelectMode: _enterSelectMode,
                 );
               },
             ),
@@ -58,36 +188,9 @@ class AlbumPage extends ConsumerWidget {
       ),
     );
   }
-
-  Future<void> _uploadPhotos(BuildContext context, WidgetRef ref) async {
-    try {
-      final service = ref.read(photoServiceProvider);
-      debugPrint('[Album] starting pickAndUpload...');
-      final results = await service.pickAndUpload(
-        onProgress: (done, total) {
-          debugPrint('[Album] uploading $done/$total');
-        },
-      );
-      debugPrint('[Album] upload done: ${results.length} photos');
-      if (results.isNotEmpty && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.isKo
-                ? '${results.length}장 업로드 완료'
-                : '${results.length} photos uploaded'),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('[Album] upload error: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload error: $e')),
-        );
-      }
-    }
-  }
 }
+
+// ─── 빈 앨범 ───
 
 class _EmptyAlbum extends StatelessWidget {
   final VoidCallback onUpload;
@@ -116,31 +219,140 @@ class _EmptyAlbum extends StatelessWidget {
   }
 }
 
-class _PhotoGrid extends StatelessWidget {
+// ─── 날짜별 그룹화 그리드 ───
+
+class _GroupedPhotoGrid extends StatelessWidget {
   final List<PhotoItem> photos;
   final PhotoService photoService;
+  final bool selectMode;
+  final Set<String> selected;
+  final ValueChanged<String> onToggleSelect;
+  final VoidCallback onEnterSelectMode;
 
-  const _PhotoGrid({required this.photos, required this.photoService});
+  const _GroupedPhotoGrid({
+    required this.photos,
+    required this.photoService,
+    required this.selectMode,
+    required this.selected,
+    required this.onToggleSelect,
+    required this.onEnterSelectMode,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(4),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemCount: photos.length,
-      itemBuilder: (context, i) {
-        final photo = photos[i];
-        return GestureDetector(
-          onTap: () => _showDetail(context, photo),
-          onLongPress: () => _showActions(context, photo),
-          child: _PhotoThumb(photo: photo, photoService: photoService),
-        );
-      },
+    final sorted = [...photos]
+      ..sort((a, b) => b.displayDate.compareTo(a.displayDate));
+
+    final grouped = <DateTime, List<PhotoItem>>{};
+    for (final p in sorted) {
+      final key = p.displayDateKey;
+      grouped.putIfAbsent(key, () => []).add(p);
+    }
+
+    return CustomScrollView(
+      slivers: [
+        for (final entry in grouped.entries) ...[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                _formatDateHeader(entry.key),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            sliver: SliverGrid(
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final photo = entry.value[index];
+                  final isSelected = selected.contains(photo.id);
+                  return GestureDetector(
+                    onTap: () {
+                      if (selectMode) {
+                        onToggleSelect(photo.id);
+                      } else {
+                        _showDetail(context, photo);
+                      }
+                    },
+                    onLongPress: () {
+                      if (!selectMode) {
+                        onEnterSelectMode();
+                        onToggleSelect(photo.id);
+                      }
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _PhotoThumb(
+                            photo: photo, photoService: photoService),
+                        if (selectMode)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.black38,
+                                border: Border.all(
+                                    color: Colors.white, width: 2),
+                              ),
+                              child: isSelected
+                                  ? const Icon(Icons.check,
+                                      size: 14, color: Colors.white)
+                                  : null,
+                            ),
+                          ),
+                        if (isSelected)
+                          Container(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+                childCount: entry.value.length,
+              ),
+            ),
+          ),
+        ],
+        const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
+      ],
     );
+  }
+
+  String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (date == today) return S.isKo ? '오늘' : 'Today';
+    if (date == yesterday) return S.isKo ? '어제' : 'Yesterday';
+
+    final locale = S.isKo ? 'ko_KR' : 'en_US';
+    final isThisYear = date.year == now.year;
+    final fmt = S.isKo
+        ? (isThisYear
+            ? DateFormat('M월 d일 (E)', locale)
+            : DateFormat('yyyy년 M월 d일 (E)', locale))
+        : (isThisYear
+            ? DateFormat('MMM d (E)', locale)
+            : DateFormat('MMM d, yyyy (E)', locale));
+    return fmt.format(date);
   }
 
   void _showDetail(BuildContext context, PhotoItem photo) {
@@ -185,30 +397,9 @@ class _PhotoGrid extends StatelessWidget {
       ),
     );
   }
-
-  void _showActions(BuildContext context, PhotoItem photo) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading:
-                  const Icon(Icons.delete_outline, color: Colors.red),
-              title: Text(S.delete,
-                  style: const TextStyle(color: Colors.red)),
-              onTap: () {
-                photoService.moveToTrash(photo.id);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+
+// ─── 썸네일 타일 ───
 
 class _PhotoThumb extends StatelessWidget {
   final PhotoItem photo;

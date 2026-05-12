@@ -15,7 +15,7 @@ class MonthlyCalendar extends ConsumerStatefulWidget {
 
 class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
   DateTime _focusedMonth = DateTime.now();
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  CalendarFormat _calendarFormat = CalendarFormat.week;
 
   String _dateKey(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
