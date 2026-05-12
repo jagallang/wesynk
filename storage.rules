@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // TODO: Auth 연동 후 members 배열 검증으로 교체
+    // 현재 개발 모드: 모든 읽기/쓰기 허용
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

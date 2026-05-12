@@ -1,17 +1,17 @@
-import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/drive_service.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../home/presentation/providers/drive_providers.dart';
+import '../../../../core/services/photo_service.dart';
+import '../../../home/presentation/providers/photo_providers.dart';
 
 class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final photosAsync = ref.watch(drivePhotosProvider);
+    final photosAsync = ref.watch(allPhotosProvider);
+    final photoService = ref.read(photoServiceProvider);
 
     return SafeArea(
       child: Column(
@@ -26,9 +26,10 @@ class AlbumPage extends ConsumerWidget {
                         .headlineSmall
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 const Spacer(),
+                // 업로드 버튼
                 IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () => ref.invalidate(drivePhotosProvider),
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  onPressed: () => _uploadPhotos(context, ref),
                 ),
               ],
             ),
@@ -38,12 +39,18 @@ class AlbumPage extends ConsumerWidget {
             child: photosAsync.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _ErrorView(error: '$e', ref: ref),
+              error: (e, _) => Center(
+                child: Text('${S.error}: $e',
+                    style: const TextStyle(color: Colors.grey)),
+              ),
               data: (photos) {
                 if (photos.isEmpty) {
-                  return _EmptyOrConnect(ref: ref);
+                  return _EmptyAlbum(onUpload: () => _uploadPhotos(context, ref));
                 }
-                return _PhotoGrid(photos: photos, ref: ref);
+                return _PhotoGrid(
+                  photos: photos,
+                  photoService: photoService,
+                );
               },
             ),
           ),
@@ -51,65 +58,40 @@ class AlbumPage extends ConsumerWidget {
       ),
     );
   }
-}
 
-/// 사진이 없을 때: 토큰 없으면 연결 버튼, 있으면 빈 상태
-class _EmptyOrConnect extends StatelessWidget {
-  final WidgetRef ref;
-  const _EmptyOrConnect({required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasToken = ref.read(authServiceProvider).accessToken != null;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            hasToken ? Icons.photo_library_outlined : Icons.cloud_outlined,
-            size: 64,
-            color: hasToken ? Colors.grey : Theme.of(context).colorScheme.primary,
+  Future<void> _uploadPhotos(BuildContext context, WidgetRef ref) async {
+    try {
+      final service = ref.read(photoServiceProvider);
+      debugPrint('[Album] starting pickAndUpload...');
+      final results = await service.pickAndUpload(
+        onProgress: (done, total) {
+          debugPrint('[Album] uploading $done/$total');
+        },
+      );
+      debugPrint('[Album] upload done: ${results.length} photos');
+      if (results.isNotEmpty && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(S.isKo
+                ? '${results.length}장 업로드 완료'
+                : '${results.length} photos uploaded'),
           ),
-          const SizedBox(height: 16),
-          Text(
-            hasToken
-                ? S.albumEmpty
-                : (S.isKo ? 'Google Drive 연결 필요' : 'Connect Google Drive'),
-            style: const TextStyle(fontSize: 16),
-          ),
-          if (!hasToken) ...[
-            const SizedBox(height: 8),
-            Text(
-              S.isKo
-                  ? '사진을 보려면 Drive 접근 권한이 필요합니다'
-                  : 'Drive access is needed to view photos',
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
-            ),
-          ],
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () async {
-              if (!hasToken) {
-                await ref.read(authServiceProvider).signInWithGoogle();
-              }
-              ref.invalidate(drivePhotosProvider);
-            },
-            icon: Icon(hasToken ? Icons.refresh : Icons.login),
-            label: Text(hasToken
-                ? (S.isKo ? '새로고침' : 'Refresh')
-                : (S.isKo ? 'Drive 연결하기' : 'Connect Drive')),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      debugPrint('[Album] upload error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload error: $e')),
+        );
+      }
+    }
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  final String error;
-  final WidgetRef ref;
-  const _ErrorView({required this.error, required this.ref});
+class _EmptyAlbum extends StatelessWidget {
+  final VoidCallback onUpload;
+  const _EmptyAlbum({required this.onUpload});
 
   @override
   Widget build(BuildContext context) {
@@ -117,16 +99,16 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-          const SizedBox(height: 12),
-          Text('${S.error}: $error',
-              style: const TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 12),
+          const Icon(Icons.photo_library_outlined,
+              size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(S.albumEmpty,
+              style: const TextStyle(color: Colors.grey, fontSize: 16)),
+          const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => ref.invalidate(drivePhotosProvider),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            onPressed: onUpload,
+            icon: const Icon(Icons.add_photo_alternate),
+            label: Text(S.isKo ? '사진 추가' : 'Add Photos'),
           ),
         ],
       ),
@@ -135,9 +117,10 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _PhotoGrid extends StatelessWidget {
-  final List<DrivePhoto> photos;
-  final WidgetRef ref;
-  const _PhotoGrid({required this.photos, required this.ref});
+  final List<PhotoItem> photos;
+  final PhotoService photoService;
+
+  const _PhotoGrid({required this.photos, required this.photoService});
 
   @override
   Widget build(BuildContext context) {
@@ -153,50 +136,72 @@ class _PhotoGrid extends StatelessWidget {
         final photo = photos[i];
         return GestureDetector(
           onTap: () => _showDetail(context, photo),
-          child: _Thumb(photo: photo, ref: ref),
+          onLongPress: () => _showActions(context, photo),
+          child: _PhotoThumb(photo: photo, photoService: photoService),
         );
       },
     );
   }
 
-  void _showDetail(BuildContext context, DrivePhoto photo) {
+  void _showDetail(BuildContext context, PhotoItem photo) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FutureBuilder<Uint8List?>(
-              future: () async {
-                final headers =
-                    await ref.read(authServiceProvider).getAuthHeaders();
-                if (headers == null) return null;
-                return DrivePhoto.downloadImage(photo.id, headers);
-              }(),
+            FutureBuilder<String>(
+              future: photoService.originalUrl(photo),
               builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
+                if (!snap.hasData) {
                   return const SizedBox(
                       height: 300,
                       child: Center(child: CircularProgressIndicator()));
                 }
-                if (snap.data == null) {
-                  return const SizedBox(
-                      height: 200, child: Icon(Icons.broken_image));
-                }
-                return Image.memory(snap.data!, fit: BoxFit.contain);
+                return CachedNetworkImage(
+                  imageUrl: snap.data!,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const SizedBox(
+                      height: 300,
+                      child: Center(child: CircularProgressIndicator())),
+                  errorWidget: (_, __, ___) => const SizedBox(
+                      height: 200, child: Icon(Icons.broken_image)),
+                );
               },
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Text(photo.name,
-                      style: const TextStyle(fontWeight: FontWeight.w500)),
-                  Text(photo.date,
-                      style:
-                          const TextStyle(color: Colors.grey, fontSize: 12)),
-                ],
+            if (photo.caption != null)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(photo.caption!),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Text(photo.date,
+                  style:
+                      const TextStyle(color: Colors.grey, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showActions(BuildContext context, PhotoItem photo) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading:
+                  const Icon(Icons.delete_outline, color: Colors.red),
+              title: Text(S.delete,
+                  style: const TextStyle(color: Colors.red)),
+              onTap: () {
+                photoService.moveToTrash(photo.id);
+                Navigator.pop(context);
+              },
             ),
           ],
         ),
@@ -205,39 +210,40 @@ class _PhotoGrid extends StatelessWidget {
   }
 }
 
-class _Thumb extends StatelessWidget {
-  final DrivePhoto photo;
-  final WidgetRef ref;
-  const _Thumb({required this.photo, required this.ref});
+class _PhotoThumb extends StatelessWidget {
+  final PhotoItem photo;
+  final PhotoService photoService;
+
+  const _PhotoThumb({required this.photo, required this.photoService});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: _loadImage(),
+    if (photo.uploading) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+
+    return FutureBuilder<String>(
+      future: photoService.thumbnailUrl(photo, size: 400),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: Colors.grey.shade200,
-            child: const Center(
-                child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))),
-          );
+        if (!snap.hasData) {
+          return Container(color: Colors.grey.shade200);
         }
-        if (snap.data == null) {
-          return Container(
+        return CachedNetworkImage(
+          imageUrl: snap.data!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: Colors.grey.shade200),
+          errorWidget: (_, __, ___) => Container(
               color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image));
-        }
-        return Image.memory(snap.data!, fit: BoxFit.cover);
+              child: const Icon(Icons.broken_image)),
+        );
       },
     );
-  }
-
-  Future<Uint8List?> _loadImage() async {
-    final headers = await ref.read(authServiceProvider).getAuthHeaders();
-    if (headers == null) return null;
-    return DrivePhoto.downloadImage(photo.id, headers);
   }
 }

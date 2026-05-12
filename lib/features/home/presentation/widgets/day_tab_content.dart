@@ -1,13 +1,12 @@
-import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/drive_service.dart';
+import '../../../../core/services/photo_service.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../../shared/widgets/empty_state.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../providers/drive_providers.dart';
 import '../providers/home_providers.dart';
+import '../providers/photo_providers.dart';
 import 'item_card.dart';
 
 class DayTabContent extends ConsumerWidget {
@@ -21,9 +20,9 @@ class DayTabContent extends ConsumerWidget {
       itemsForDateAndTypeProvider((dateKey: dateKey, type: type)),
     );
 
-    // 사진 탭이면 Drive 사진도 함께 표시
+    // 사진 탭이면 Firebase Storage 사진 표시
     if (type == ItemType.photo) {
-      return _PhotoTabContent(dateKey: dateKey, itemsAsync: itemsAsync);
+      return _PhotoTabContent(dateKey: dateKey);
     }
 
     return itemsAsync.when(
@@ -44,68 +43,72 @@ class DayTabContent extends ConsumerWidget {
 
 class _PhotoTabContent extends ConsumerWidget {
   final String dateKey;
-  final AsyncValue<List<Item>> itemsAsync;
-
-  const _PhotoTabContent({required this.dateKey, required this.itemsAsync});
+  const _PhotoTabContent({required this.dateKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final drivePhotos = ref.watch(drivePhotosByDateProvider(dateKey));
+    final photosAsync = ref.watch(photosByDateProvider(dateKey));
+    final photoService = ref.read(photoServiceProvider);
 
-    final firestoreItems = itemsAsync.valueOrNull ?? [];
-    final hasPhotos = drivePhotos.isNotEmpty || firestoreItems.isNotEmpty;
+    return photosAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('${S.error}: $e')),
+      data: (photos) {
+        if (photos.isEmpty) return const EmptyState(type: ItemType.photo);
 
-    if (!hasPhotos) return const EmptyState(type: ItemType.photo);
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemCount: drivePhotos.length,
-      itemBuilder: (context, i) {
-        final photo = drivePhotos[i];
-        return GestureDetector(
-          onTap: () => _showDetail(context, ref, photo),
-          child: _DriveThumb(photo: photo, ref: ref),
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
+          ),
+          itemCount: photos.length,
+          itemBuilder: (context, i) {
+            final photo = photos[i];
+            return GestureDetector(
+              onTap: () => _showDetail(context, photoService, photo),
+              child: _StorageThumb(
+                  photo: photo, photoService: photoService),
+            );
+          },
         );
       },
     );
   }
 
-  void _showDetail(BuildContext context, WidgetRef ref, DrivePhoto photo) {
+  void _showDetail(
+      BuildContext context, PhotoService service, PhotoItem photo) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FutureBuilder<Uint8List?>(
-              future: () async {
-                final headers =
-                    await ref.read(authServiceProvider).getAuthHeaders();
-                if (headers == null) return null;
-                return DrivePhoto.downloadImage(photo.id, headers);
-              }(),
+            FutureBuilder<String>(
+              future: service.originalUrl(photo),
               builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
+                if (!snap.hasData) {
                   return const SizedBox(
                       height: 300,
                       child: Center(child: CircularProgressIndicator()));
                 }
-                if (snap.data == null) {
-                  return const SizedBox(
-                      height: 200, child: Icon(Icons.broken_image));
-                }
-                return Image.memory(snap.data!, fit: BoxFit.contain);
+                return CachedNetworkImage(
+                  imageUrl: snap.data!,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const SizedBox(
+                      height: 300,
+                      child: Center(child: CircularProgressIndicator())),
+                  errorWidget: (_, __, ___) => const SizedBox(
+                      height: 200, child: Icon(Icons.broken_image)),
+                );
               },
             ),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(photo.name,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              child: Text(photo.date,
+                  style:
+                      const TextStyle(fontSize: 12, color: Colors.grey)),
             ),
           ],
         ),
@@ -114,40 +117,40 @@ class _PhotoTabContent extends ConsumerWidget {
   }
 }
 
-class _DriveThumb extends StatelessWidget {
-  final DrivePhoto photo;
-  final WidgetRef ref;
+class _StorageThumb extends StatelessWidget {
+  final PhotoItem photo;
+  final PhotoService photoService;
 
-  const _DriveThumb({required this.photo, required this.ref});
+  const _StorageThumb({required this.photo, required this.photoService});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: _loadImage(),
+    if (photo.uploading) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+
+    return FutureBuilder<String>(
+      future: photoService.thumbnailUrl(photo, size: 400),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: Colors.grey.shade200,
-            child: const Center(
-                child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))),
-          );
+        if (!snap.hasData) {
+          return Container(color: Colors.grey.shade200);
         }
-        if (snap.data == null) {
-          return Container(
+        return CachedNetworkImage(
+          imageUrl: snap.data!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: Colors.grey.shade200),
+          errorWidget: (_, __, ___) => Container(
               color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image));
-        }
-        return Image.memory(snap.data!, fit: BoxFit.cover);
+              child: const Icon(Icons.broken_image)),
+        );
       },
     );
-  }
-
-  Future<Uint8List?> _loadImage() async {
-    final headers = await ref.read(authServiceProvider).getAuthHeaders();
-    if (headers == null) return null;
-    return DrivePhoto.downloadImage(photo.id, headers);
   }
 }

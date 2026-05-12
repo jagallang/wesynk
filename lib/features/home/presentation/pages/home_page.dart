@@ -12,6 +12,7 @@ import '../../../security/presentation/pages/pin_screen.dart';
 import '../../../security/presentation/providers/security_provider.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../providers/home_providers.dart';
+import '../providers/photo_providers.dart';
 import '../widgets/day_tab_content.dart';
 import '../widgets/monthly_calendar.dart';
 
@@ -283,10 +284,18 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  void _showPhotoPlaceholder(String dateKey) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(S.photoPlaceholder)),
-    );
+  Future<void> _showPhotoPlaceholder(String dateKey) async {
+    final service = ref.read(photoServiceProvider);
+    final results = await service.pickAndUpload();
+    if (results.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(S.isKo
+              ? '${results.length}장 업로드 완료'
+              : '${results.length} photos uploaded'),
+        ),
+      );
+    }
   }
 
   void _showDateForm(String dateKey) {
