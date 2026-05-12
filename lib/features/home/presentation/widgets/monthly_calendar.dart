@@ -27,6 +27,9 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
     final googleCountsAsync = ref.watch(googleEventCountsProvider(_focusedMonth));
     final googleCounts = googleCountsAsync.valueOrNull ?? {};
 
+    final myColor = ref.watch(myEventColorProvider);
+    final googleColor = ref.watch(googleEventColorProvider);
+
     return Column(
       children: [
         TableCalendar(
@@ -50,6 +53,32 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
             final cnt = (eventCounts[key] ?? 0) + (googleCounts[key] ?? 0);
             return List.filled(cnt.clamp(0, 3), 'event');
           },
+          calendarBuilders: CalendarBuilders(
+            markerBuilder: (context, day, events) {
+              if (events.isEmpty) return null;
+              final key = _dateKey(day);
+              final wesyncCount = eventCounts[key] ?? 0;
+              final gCount = googleCounts[key] ?? 0;
+
+              final dots = <Widget>[];
+              if (wesyncCount > 0) {
+                dots.add(_dot(myColor));
+              }
+              if (gCount > 0) {
+                dots.add(_dot(googleColor));
+              }
+              // 총 개수가 3개 이상이면 추가 dot
+              final total = wesyncCount + gCount;
+              if (total >= 3 && dots.length < 3) {
+                dots.add(_dot(myColor.withValues(alpha: 0.5)));
+              }
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: dots,
+              );
+            },
+          ),
           onDaySelected: (selected, focused) {
             ref.read(selectedDateProvider.notifier).state = selected;
             setState(() => _focusedMonth = focused);
@@ -62,12 +91,7 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
           },
           calendarStyle: CalendarStyle(
             outsideDaysVisible: false,
-            markerSize: 5,
-            markersMaxCount: 3,
-            markerDecoration: const BoxDecoration(
-              color: AppColors.marker,
-              shape: BoxShape.circle,
-            ),
+            markersMaxCount: 0, // markerBuilder로 직접 처리
             todayDecoration: BoxDecoration(
               color: AppColors.today.withValues(alpha: 0.2),
               shape: BoxShape.circle,
@@ -120,6 +144,15 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _dot(Color color) {
+    return Container(
+      width: 6,
+      height: 6,
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

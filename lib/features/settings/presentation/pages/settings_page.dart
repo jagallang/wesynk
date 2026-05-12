@@ -295,6 +295,38 @@ class SettingsPage extends ConsumerWidget {
           _GoogleCalendarToggle(),
           const SizedBox(height: 24),
 
+          // ─── 일정 색상 ───
+          Text(S.isKo ? '일정 색상' : 'Event Colors',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                _ColorPickerTile(
+                  label: S.isKo ? '내 일정' : 'My Events',
+                  icon: Icons.person,
+                  colorProvider: myEventColorProvider,
+                ),
+                const Divider(height: 1),
+                _ColorPickerTile(
+                  label: S.isKo ? '파트너 일정' : 'Partner Events',
+                  icon: Icons.favorite,
+                  colorProvider: partnerEventColorProvider,
+                ),
+                const Divider(height: 1),
+                _ColorPickerTile(
+                  label: S.isKo ? 'Google 일정' : 'Google Events',
+                  icon: Icons.calendar_month,
+                  colorProvider: googleEventColorProvider,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // ─── 보안 ───
           Text(S.security,
               style: Theme.of(context)
@@ -792,6 +824,110 @@ class _GoogleCalendarToggleState extends ConsumerState<_GoogleCalendarToggle> {
         ),
         value: enabled,
         onChanged: _loading ? null : _toggle,
+      ),
+    );
+  }
+}
+
+class _ColorPickerTile extends ConsumerWidget {
+  final String label;
+  final IconData icon;
+  final StateProvider<Color> colorProvider;
+
+  const _ColorPickerTile({
+    required this.label,
+    required this.icon,
+    required this.colorProvider,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(colorProvider);
+
+    return ListTile(
+      leading: Icon(icon, color: current),
+      title: Text(label),
+      trailing: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: current,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+      ),
+      onTap: () => _showColorPicker(context, ref, current),
+    );
+  }
+
+  void _showColorPicker(BuildContext context, WidgetRef ref, Color current) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: calendarColorPresets.map((preset) {
+                  final isSelected = preset.color == current;
+                  return GestureDetector(
+                    onTap: () {
+                      ref.read(colorProvider.notifier).state = preset.color;
+                      Navigator.pop(context);
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: preset.color,
+                            shape: BoxShape.circle,
+                            border: isSelected
+                                ? Border.all(color: Colors.white, width: 3)
+                                : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: preset.color.withValues(alpha: 0.5),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check,
+                                  color: Colors.white, size: 20)
+                              : null,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          preset.name,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSelected
+                                ? preset.color
+                                : Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }

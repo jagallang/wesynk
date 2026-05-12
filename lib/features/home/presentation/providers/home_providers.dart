@@ -76,6 +76,32 @@ final appCustomizationProvider = StateProvider<AppCustomization>(
   (ref) => const AppCustomization(),
 );
 
+// ─── 계정별 일정 색상 ───
+
+const calendarColorPresets = <({String name, Color color})>[
+  (name: '빨간색', color: Color(0xFFE53935)),
+  (name: '파란색', color: Color(0xFF1E88E5)),
+  (name: '보라색', color: Color(0xFF8E24AA)),
+  (name: '초록색', color: Color(0xFF43A047)),
+  (name: '주황색', color: Color(0xFFFB8C00)),
+  (name: '핑크색', color: Color(0xFFD81B60)),
+];
+
+/// 내 일정 색상
+final myEventColorProvider = StateProvider<Color>(
+  (ref) => const Color(0xFFE53935), // 빨간색
+);
+
+/// 파트너 일정 색상
+final partnerEventColorProvider = StateProvider<Color>(
+  (ref) => const Color(0xFF1E88E5), // 파란색
+);
+
+/// Google 일정 색상
+final googleEventColorProvider = StateProvider<Color>(
+  (ref) => const Color(0xFF8E24AA), // 보라색
+);
+
 // ─── Firestore 서비스 ───
 
 final firestoreServiceProvider = Provider<FirestoreService>(

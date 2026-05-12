@@ -89,33 +89,33 @@ class _EventTabWithGoogle extends ConsumerWidget {
   }
 }
 
-class _GoogleEventCard extends StatelessWidget {
+class _GoogleEventCard extends ConsumerWidget {
   final CalendarEvent event;
   const _GoogleEventCard({required this.event});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final googleColor = ref.watch(googleEventColorProvider);
     final timeText = event.isAllDay
         ? (S.isKo ? '종일' : 'All day')
         : '${DateFormat('HH:mm').format(event.startTime)}'
             ' - ${DateFormat('HH:mm').format(event.endTime)}';
 
     return Card(
-      color: Colors.blue.shade50,
+      color: googleColor.withValues(alpha: 0.08),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             Icon(Icons.event_outlined,
-                size: 20, color: Colors.blue.shade400),
+                size: 20, color: googleColor),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(event.title,
-                      style: theme.textTheme.bodyMedium
+                      style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w500)),
                   Text(timeText,
                       style: TextStyle(
@@ -126,12 +126,12 @@ class _GoogleEventCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.blue.shade100,
+                color: googleColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text('Google',
                   style: TextStyle(
-                      fontSize: 10, color: Colors.blue.shade700)),
+                      fontSize: 10, color: googleColor)),
             ),
           ],
         ),

@@ -16,12 +16,26 @@ class ItemCard extends ConsumerWidget {
     final payload = item.payload;
     final theme = Theme.of(context);
 
+    final eventColor = item.createdBy == 'me'
+        ? ref.watch(myEventColorProvider)
+        : ref.watch(partnerEventColorProvider);
+
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onLongPress: () => _showActions(context, ref),
         child: Row(
           children: [
+            // 색상 인디케이터
+            Container(
+              width: 4,
+              height: 40,
+              margin: const EdgeInsets.only(left: 4),
+              decoration: BoxDecoration(
+                color: eventColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             // 체크박스
             Checkbox(
               value: item.checked,
