@@ -8,6 +8,7 @@ class MessageInput extends StatefulWidget {
   final bool defaultEphemeral;
   final Duration defaultLifetime;
   final VoidCallback? onPickPhoto;
+  final VoidCallback? onClear;
 
   const MessageInput({
     super.key,
@@ -15,6 +16,7 @@ class MessageInput extends StatefulWidget {
     this.defaultEphemeral = false,
     this.defaultLifetime = const Duration(hours: 1),
     this.onPickPhoto,
+    this.onClear,
   });
 
   @override
@@ -52,17 +54,33 @@ class _MessageInputState extends State<MessageInput> {
       child: SafeArea(
         top: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-              color: Colors.grey,
-              onPressed: widget.onPickPhoto,
-              tooltip: CS.isKo ? '사진 보내기' : 'Send photo',
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  color: Colors.grey,
+                  onPressed: widget.onClear,
+                  tooltip: CS.isKo ? '채팅 지우기' : 'Clear chat',
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: EdgeInsets.zero,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
+                  color: Colors.grey,
+                  onPressed: widget.onPickPhoto,
+                  tooltip: CS.isKo ? '사진 보내기' : 'Send photo',
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
             ),
             Expanded(
               child: TextField(
                 controller: _controller,
-                minLines: 1,
+                minLines: 2,
                 maxLines: 5,
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(

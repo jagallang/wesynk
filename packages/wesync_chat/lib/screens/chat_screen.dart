@@ -29,6 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ChatService _service;
   Timer? _refreshTimer;
   ChatSettings _chatSettings = const ChatSettings();
+  DateTime? _clearBefore;
 
   @override
   void initState() {
@@ -118,7 +119,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final all = snap.data!;
-                final visible = all.where((m) => m.isVisible()).toList();
+                final visible = all.where((m) {
+                  if (!m.isVisible()) return false;
+                  if (_clearBefore != null && m.sentAt.isBefore(_clearBefore!)) {
+                    return false;
+                  }
+                  return true;
+                }).toList();
 
                 if (visible.isEmpty) {
                   return Center(
@@ -163,6 +170,9 @@ class _ChatScreenState extends State<ChatScreen> {
             defaultLifetime: _chatSettings.defaultLifetime,
             onSend: (body, lifetime, {imageUrl}) async {
               await _service.send(body, lifetime: lifetime, imageUrl: imageUrl);
+            },
+            onClear: () {
+              setState(() => _clearBefore = DateTime.now());
             },
             onPickPhoto: widget.onPickPhoto == null
                 ? null
