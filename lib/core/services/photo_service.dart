@@ -55,6 +55,8 @@ class PhotoItem {
     );
   }
 
+  bool get isVideo => mimeType.startsWith('video/');
+
   String thumbnailPath(int size) {
     final segments = storagePath.split('/');
     final filename = segments.last;
@@ -186,13 +188,20 @@ class PhotoService {
   Future<List<PhotoItem>> pickAndUpload({
     void Function(int done, int total)? onProgress,
   }) async {
-    const imageTypeGroup = XTypeGroup(
-      label: 'images',
-      extensions: ['jpg', 'jpeg', 'png', 'webp', 'heic'],
-      mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
+    const mediaTypeGroup = XTypeGroup(
+      label: 'images & videos',
+      extensions: [
+        'jpg', 'jpeg', 'png', 'webp', 'heic',
+        'mp4', 'mov', 'avi', 'mkv', 'webm',
+      ],
+      mimeTypes: [
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+        'video/mp4', 'video/quicktime', 'video/x-msvideo',
+        'video/x-matroska', 'video/webm',
+      ],
     );
 
-    final files = await openFiles(acceptedTypeGroups: [imageTypeGroup]);
+    final files = await openFiles(acceptedTypeGroups: [mediaTypeGroup]);
     if (files.isEmpty) return [];
 
     final results = <PhotoItem>[];
@@ -258,7 +267,10 @@ class PhotoService {
         },
       ),
     );
-    final metadataFuture = extractPhotoMetadata(bytes);
+    final isVideo = _mimeForExt(ext).startsWith('video/');
+    final metadataFuture = isVideo
+        ? Future.value(<String, dynamic>{})
+        : extractPhotoMetadata(bytes);
     final task = await uploadFuture;
     final metadata = await metadataFuture;
 
@@ -304,6 +316,11 @@ class PhotoService {
         'png' => 'image/png',
         'heic' => 'image/heic',
         'webp' => 'image/webp',
+        'mp4' => 'video/mp4',
+        'mov' => 'video/quicktime',
+        'avi' => 'video/x-msvideo',
+        'mkv' => 'video/x-matroska',
+        'webm' => 'video/webm',
         _ => 'image/jpeg',
       };
 

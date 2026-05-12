@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
@@ -296,6 +297,11 @@ class _GroupedPhotoGrid extends StatelessWidget {
                       children: [
                         _PhotoThumb(
                             photo: photo, photoService: photoService),
+                        if (photo.isVideo)
+                          const Center(
+                            child: Icon(Icons.play_circle_fill,
+                                size: 36, color: Colors.white70),
+                          ),
                         if (selectMode)
                           Positioned(
                             top: 4,
@@ -356,6 +362,14 @@ class _GroupedPhotoGrid extends StatelessWidget {
   }
 
   void _showDetail(BuildContext context, PhotoItem photo) {
+    if (photo.isVideo) {
+      _showVideoDetail(context, photo);
+    } else {
+      _showImageDetail(context, photo);
+    }
+  }
+
+  void _showImageDetail(BuildContext context, PhotoItem photo) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -388,6 +402,36 @@ class _GroupedPhotoGrid extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Text(photo.date,
+                  style:
+                      const TextStyle(color: Colors.grey, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showVideoDetail(BuildContext context, PhotoItem photo) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FutureBuilder<String>(
+              future: photoService.originalUrl(photo),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const SizedBox(
+                      height: 300,
+                      child: Center(child: CircularProgressIndicator()));
+                }
+                return _VideoPlayerWidget(url: snap.data!);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Text(photo.date,
                   style:
                       const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -456,6 +500,78 @@ class _PhotoThumbState extends State<_PhotoThumb> {
               child: const Icon(Icons.broken_image)),
         );
       },
+    );
+  }
+}
+
+// ─── 영상 재생 위젯 ───
+
+class _VideoPlayerWidget extends StatefulWidget {
+  final String url;
+  const _VideoPlayerWidget({required this.url});
+
+  @override
+  State<_VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
+}
+
+class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) setState(() => _initialized = true);
+        _controller.play();
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const SizedBox(
+        height: 300,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return AspectRatio(
+      aspectRatio: _controller.value.aspectRatio,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          VideoPlayer(_controller),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _controller.value.isPlaying
+                    ? _controller.pause()
+                    : _controller.play();
+              });
+            },
+            child: AnimatedOpacity(
+              opacity: _controller.value.isPlaying ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.play_circle_fill,
+                  size: 64, color: Colors.white70),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: VideoProgressIndicator(_controller, allowScrubbing: true),
+          ),
+        ],
+      ),
     );
   }
 }
