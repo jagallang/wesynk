@@ -31,7 +31,7 @@ class S {
 
   // ─── 탭 ───
   static String get tabTravel => isKo ? '일정' : 'Schedule';
-  static String get tabFood => isKo ? '맛집' : 'Food';
+  static String get tabFood => isKo ? '마실' : 'Outing';
   static String get tabNote => isKo ? '일기' : 'Diary';
   static String get tabPhoto => isKo ? '사진' : 'Photos';
 
