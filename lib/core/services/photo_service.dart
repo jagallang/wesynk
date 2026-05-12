@@ -310,11 +310,9 @@ class PhotoService {
   // ─── URL ───
 
   Future<String> thumbnailUrl(PhotoItem photo, {int size = 400}) async {
-    try {
-      return await _storage.ref(photo.thumbnailPath(size)).getDownloadURL();
-    } catch (_) {
-      return await _storage.ref(photo.storagePath).getDownloadURL();
-    }
+    // Resize Images extension 미설치 → 원본 URL 직접 반환
+    // (thumb_400 경로가 항상 404이므로 불필요한 요청 제거)
+    return await _storage.ref(photo.storagePath).getDownloadURL();
   }
 
   Future<String> originalUrl(PhotoItem photo) async {

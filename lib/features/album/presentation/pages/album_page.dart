@@ -401,15 +401,36 @@ class _GroupedPhotoGrid extends StatelessWidget {
 
 // ─── 썸네일 타일 ───
 
-class _PhotoThumb extends StatelessWidget {
+class _PhotoThumb extends StatefulWidget {
   final PhotoItem photo;
   final PhotoService photoService;
 
   const _PhotoThumb({required this.photo, required this.photoService});
 
   @override
+  State<_PhotoThumb> createState() => _PhotoThumbState();
+}
+
+class _PhotoThumbState extends State<_PhotoThumb> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+  }
+
+  @override
+  void didUpdateWidget(_PhotoThumb old) {
+    super.didUpdateWidget(old);
+    if (old.photo.id != widget.photo.id) {
+      _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (photo.uploading) {
+    if (widget.photo.uploading) {
       return Container(
         color: Colors.grey.shade200,
         child: const Center(
@@ -421,7 +442,7 @@ class _PhotoThumb extends StatelessWidget {
     }
 
     return FutureBuilder<String>(
-      future: photoService.thumbnailUrl(photo, size: 400),
+      future: _urlFuture,
       builder: (context, snap) {
         if (!snap.hasData) {
           return Container(color: Colors.grey.shade200);

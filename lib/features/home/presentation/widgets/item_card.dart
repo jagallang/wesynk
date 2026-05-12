@@ -73,19 +73,35 @@ class ItemCard extends ConsumerWidget {
               Text(payload['location'].toString(), style: subtitleStyle),
           ],
         ),
-      ItemType.note => Row(
+      ItemType.note => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(payload['mood']?.toString() ?? '📝',
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                payload['body']?.toString() ?? '',
-                style: titleStyle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+            Row(
+              children: [
+                Text(payload['mood']?.toString() ?? '📝',
+                    style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    (payload['body']?.toString() ?? '').split('\n').first,
+                    style: titleStyle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
+            if ((payload['body']?.toString() ?? '').contains('\n'))
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  payload['body']?.toString() ?? '',
+                  style: titleStyle?.copyWith(fontSize: 13) ??
+                      const TextStyle(fontSize: 13),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ItemType.photo => Text(
@@ -251,7 +267,9 @@ class ItemCard extends ConsumerWidget {
               decoration: InputDecoration(
                   hintText: S.noteHint,
                   border: const OutlineInputBorder()),
-              maxLines: 4,
+              maxLines: null,
+              minLines: 6,
+              keyboardType: TextInputType.multiline,
               autofocus: true,
             ),
             const SizedBox(height: 16),

@@ -117,15 +117,36 @@ class _PhotoTabContent extends ConsumerWidget {
   }
 }
 
-class _StorageThumb extends StatelessWidget {
+class _StorageThumb extends StatefulWidget {
   final PhotoItem photo;
   final PhotoService photoService;
 
   const _StorageThumb({required this.photo, required this.photoService});
 
   @override
+  State<_StorageThumb> createState() => _StorageThumbState();
+}
+
+class _StorageThumbState extends State<_StorageThumb> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+  }
+
+  @override
+  void didUpdateWidget(_StorageThumb old) {
+    super.didUpdateWidget(old);
+    if (old.photo.id != widget.photo.id) {
+      _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (photo.uploading) {
+    if (widget.photo.uploading) {
       return Container(
         color: Colors.grey.shade200,
         child: const Center(
@@ -137,7 +158,7 @@ class _StorageThumb extends StatelessWidget {
     }
 
     return FutureBuilder<String>(
-      future: photoService.thumbnailUrl(photo, size: 400),
+      future: _urlFuture,
       builder: (context, snap) {
         if (!snap.hasData) {
           return Container(color: Colors.grey.shade200);
