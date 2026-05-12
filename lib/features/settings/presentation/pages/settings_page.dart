@@ -292,22 +292,7 @@ class SettingsPage extends ConsumerWidget {
                   .titleSmall
                   ?.copyWith(color: Colors.grey.shade600)),
           const SizedBox(height: 8),
-          Card(
-            child: SwitchListTile(
-              secondary: Icon(Icons.calendar_month,
-                  color: customization.themeColor),
-              title: Text(S.isKo ? 'Google 캘린더 연동' : 'Google Calendar'),
-              subtitle: Text(
-                ref.watch(googleCalendarEnabledProvider)
-                    ? (S.isKo ? '연동 중 — 일정 탭에 Google 일정 표시' : 'Syncing — Google events shown')
-                    : (S.isKo ? '꺼짐' : 'Off'),
-              ),
-              value: ref.watch(googleCalendarEnabledProvider),
-              onChanged: (v) {
-                ref.read(googleCalendarEnabledProvider.notifier).state = v;
-              },
-            ),
-          ),
+          _GoogleCalendarToggle(),
           const SizedBox(height: 24),
 
           // ─── 보안 ───
@@ -755,6 +740,59 @@ class _PairingStatusView extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _GoogleCalendarToggle extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_GoogleCalendarToggle> createState() =>
+      _GoogleCalendarToggleState();
+}
+
+class _GoogleCalendarToggleState extends ConsumerState<_GoogleCalendarToggle> {
+  bool _loading = false;
+
+  Future<void> _toggle(bool enable) async {
+    if (enable) {
+      // auth headers가 없으면 Google 재인증
+      final headers = ref.read(googleAuthHeadersProvider);
+      if (headers == null) {
+        setState(() => _loading = true);
+        try {
+          await ref.read(authServiceProvider).signInWithGoogle(ref);
+        } finally {
+          if (mounted) setState(() => _loading = false);
+        }
+        // 인증 실패 시 토글 안 함
+        if (ref.read(googleAuthHeadersProvider) == null) return;
+      }
+    }
+    ref.read(googleCalendarEnabledProvider.notifier).state = enable;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = ref.watch(googleCalendarEnabledProvider);
+    final customization = ref.watch(appCustomizationProvider);
+
+    return Card(
+      child: SwitchListTile(
+        secondary: _loading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(Icons.calendar_month, color: customization.themeColor),
+        title: Text(S.isKo ? 'Google 캘린더 연동' : 'Google Calendar'),
+        subtitle: Text(
+          enabled
+              ? (S.isKo ? '연동 중 — 일정 탭에 Google 일정 표시' : 'Syncing — Google events shown')
+              : (S.isKo ? '꺼짐' : 'Off'),
+        ),
+        value: enabled,
+        onChanged: _loading ? null : _toggle,
+      ),
     );
   }
 }
