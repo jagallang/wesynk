@@ -54,7 +54,31 @@ class MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(message.body, style: TextStyle(fontSize: fontSize)),
+                  if (message.hasImage)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          message.imageUrl!,
+                          width: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return const SizedBox(
+                              width: 200, height: 150,
+                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => const SizedBox(
+                            width: 200, height: 100,
+                            child: Icon(Icons.broken_image, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (message.body.isNotEmpty)
+                    Text(message.body, style: TextStyle(fontSize: fontSize)),
                   const SizedBox(height: 2),
                   Row(
                     mainAxisSize: MainAxisSize.min,

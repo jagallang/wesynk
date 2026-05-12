@@ -93,7 +93,11 @@ class _HomePageState extends ConsumerState<HomePage>
         index: _navIndex,
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
-          const ChatScreen(coupleId: 'default-couple', myUid: 'me'),
+          ChatScreen(
+            coupleId: 'default-couple',
+            myUid: 'me',
+            onPickPhoto: () => _pickPhotoForChat(),
+          ),
           const AlbumPage(),
           const SettingsPage(),
         ],
@@ -306,6 +310,21 @@ class _HomePageState extends ConsumerState<HomePage>
           SnackBar(content: Text('Error: $e')),
         );
       }
+    }
+  }
+
+  /// 채팅에서 사진 선택 → 앨범 업로드 → URL 반환
+  Future<String?> _pickPhotoForChat() async {
+    try {
+      final service = ref.read(photoServiceProvider);
+      final results = await service.pickAndUpload();
+      if (results.isEmpty) return null;
+      final photo = results.first;
+      final url = await service.originalUrl(photo);
+      return url;
+    } catch (e) {
+      debugPrint('[HomePage] chat photo error: $e');
+      return null;
     }
   }
 

@@ -9,6 +9,7 @@ class Message {
   final Map<String, List<String>> reactions; // emoji → [uids]
   final DateTime? hideAfter;
   final DateTime? editedAt;
+  final String? imageUrl;
 
   Message({
     required this.id,
@@ -19,7 +20,10 @@ class Message {
     this.reactions = const {},
     this.hideAfter,
     this.editedAt,
+    this.imageUrl,
   });
+
+  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
 
   /// Firestore 문서 → Message
   factory Message.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -37,6 +41,7 @@ class Message {
       ),
       hideAfter: (d['hideAfter'] as Timestamp?)?.toDate(),
       editedAt: (d['editedAt'] as Timestamp?)?.toDate(),
+      imageUrl: d['imageUrl'] as String?,
     );
   }
 
@@ -50,6 +55,7 @@ class Message {
       'reactions': reactions,
       'hideAfter': hideAfter == null ? null : Timestamp.fromDate(hideAfter!),
       'editedAt': editedAt == null ? null : Timestamp.fromDate(editedAt!),
+      if (imageUrl != null) 'imageUrl': imageUrl,
     };
   }
 
@@ -68,6 +74,7 @@ class Message {
       reactions: reactions ?? this.reactions,
       hideAfter: hideAfter ?? this.hideAfter,
       editedAt: editedAt ?? this.editedAt,
+      imageUrl: imageUrl,
     );
   }
 

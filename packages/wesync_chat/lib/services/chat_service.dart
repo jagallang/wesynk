@@ -25,7 +25,8 @@ class ChatService {
   }
 
   /// 메시지 전송
-  Future<void> send(String body, {Duration? lifetime}) async {
+  Future<void> send(String body,
+      {Duration? lifetime, String? imageUrl}) async {
     final now = DateTime.now();
     final msg = Message(
       id: '',
@@ -34,9 +35,10 @@ class ChatService {
       sentAt: now,
       readBy: {myUid: now},
       hideAfter: lifetime == null ? null : now.add(lifetime),
+      imageUrl: imageUrl,
     );
     await _col.add(msg.toMap());
-    debugPrint('[ChatService] sent: $body');
+    debugPrint('[ChatService] sent: $body (image: ${imageUrl != null})');
   }
 
   /// 본인 메시지 삭제 (숨김)

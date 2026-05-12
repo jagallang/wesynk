@@ -12,11 +12,13 @@ import 'chat_settings_screen.dart';
 class ChatScreen extends StatefulWidget {
   final String coupleId;
   final String myUid;
+  final Future<String?> Function()? onPickPhoto;
 
   const ChatScreen({
     super.key,
     required this.coupleId,
     required this.myUid,
+    this.onPickPhoto,
   });
 
   @override
@@ -159,9 +161,17 @@ class _ChatScreenState extends State<ChatScreen> {
           MessageInput(
             defaultEphemeral: _chatSettings.defaultEphemeral,
             defaultLifetime: _chatSettings.defaultLifetime,
-            onSend: (body, lifetime) async {
-              await _service.send(body, lifetime: lifetime);
+            onSend: (body, lifetime, {imageUrl}) async {
+              await _service.send(body, lifetime: lifetime, imageUrl: imageUrl);
             },
+            onPickPhoto: widget.onPickPhoto == null
+                ? null
+                : () async {
+                    final url = await widget.onPickPhoto!();
+                    if (url != null) {
+                      await _service.send('', imageUrl: url);
+                    }
+                  },
           ),
         ],
       ),
