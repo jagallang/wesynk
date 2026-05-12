@@ -454,7 +454,7 @@ class _CalendarView extends ConsumerWidget {
             controller: tabController,
             tabs: [
               for (final t in tabOrder)
-                Tab(icon: Icon(t.icon, size: 18), text: t.label),
+                _CountTab(type: t, dateKey: ref.watch(selectedDateKeyProvider)),
             ],
             labelStyle: const TextStyle(fontSize: 12),
           ),
@@ -466,6 +466,54 @@ class _CalendarView extends ConsumerWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountTab extends ConsumerWidget {
+  final ItemType type;
+  final String dateKey;
+
+  const _CountTab({required this.type, required this.dateKey});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    int count = 0;
+
+    if (type == ItemType.photo) {
+      final photosAsync = ref.watch(photosByDateProvider(dateKey));
+      count = photosAsync.valueOrNull?.length ?? 0;
+    } else {
+      final itemsAsync = ref.watch(
+        itemsForDateAndTypeProvider((dateKey: dateKey, type: type)),
+      );
+      count = itemsAsync.valueOrNull?.length ?? 0;
+    }
+
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(type.icon, size: 18),
+          const SizedBox(width: 4),
+          Text(type.label),
+          if (count > 0) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                    fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ],
       ),
     );

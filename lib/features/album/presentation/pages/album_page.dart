@@ -1,8 +1,9 @@
+import 'dart:ui_web' as ui_web;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:video_player/video_player.dart';
+import 'package:web/web.dart' as web;
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
@@ -485,6 +486,16 @@ class _PhotoThumbState extends State<_PhotoThumb> {
       );
     }
 
+    // 영상은 이미지로 렌더링 불가 → 아이콘 + 배경색으로 대체
+    if (widget.photo.isVideo) {
+      return Container(
+        color: Colors.grey.shade800,
+        child: const Center(
+          child: Icon(Icons.videocam, size: 32, color: Colors.white54),
+        ),
+      );
+    }
+
     return FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snap) {
@@ -504,7 +515,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   }
 }
 
-// ─── 영상 재생 위젯 ───
+// ─── 영상 재생 위젯 (웹 네이티브 <video>) ───
 
 class _VideoPlayerWidget extends StatefulWidget {
   final String url;
@@ -515,63 +526,29 @@ class _VideoPlayerWidget extends StatefulWidget {
 }
 
 class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-  bool _initialized = false;
+  late final String _viewId;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) setState(() => _initialized = true);
-        _controller.play();
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+    _viewId = 'video-${widget.url.hashCode}';
+    ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+      final video = web.document.createElement('video') as web.HTMLVideoElement;
+      video.src = widget.url;
+      video.controls = true;
+      video.autoplay = true;
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.backgroundColor = 'black';
+      return video;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      return const SizedBox(
-        height: 300,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return AspectRatio(
-      aspectRatio: _controller.value.aspectRatio,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          VideoPlayer(_controller),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _controller.value.isPlaying
-                    ? _controller.pause()
-                    : _controller.play();
-              });
-            },
-            child: AnimatedOpacity(
-              opacity: _controller.value.isPlaying ? 0.0 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.play_circle_fill,
-                  size: 64, color: Colors.white70),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: VideoProgressIndicator(_controller, allowScrubbing: true),
-          ),
-        ],
-      ),
+    return SizedBox(
+      height: 300,
+      child: HtmlElementView(viewType: _viewId),
     );
   }
 }
