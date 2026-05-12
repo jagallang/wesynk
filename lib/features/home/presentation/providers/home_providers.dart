@@ -122,8 +122,13 @@ final eventCountByDateProvider =
 
 // ─── Google Calendar ───
 
-/// Google Calendar 서비스 (로그인 시에만 사용 가능)
+/// Google Calendar 연동 on/off
+final googleCalendarEnabledProvider = StateProvider<bool>((ref) => false);
+
+/// Google Calendar 서비스 (연동 ON + 로그인 시에만 사용 가능)
 final googleCalendarServiceProvider = Provider<GoogleCalendarService?>((ref) {
+  final enabled = ref.watch(googleCalendarEnabledProvider);
+  if (!enabled) return null;
   final headers = ref.watch(googleAuthHeadersProvider);
   if (headers == null) return null;
   return GoogleCalendarService(headers);

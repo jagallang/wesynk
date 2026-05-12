@@ -285,6 +285,31 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
+          // ─── Google Calendar 연동 ───
+          Text(S.isKo ? '캘린더 연동' : 'Calendar Sync',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          Card(
+            child: SwitchListTile(
+              secondary: Icon(Icons.calendar_month,
+                  color: customization.themeColor),
+              title: Text(S.isKo ? 'Google 캘린더 연동' : 'Google Calendar'),
+              subtitle: Text(
+                ref.watch(googleCalendarEnabledProvider)
+                    ? (S.isKo ? '연동 중 — 일정 탭에 Google 일정 표시' : 'Syncing — Google events shown')
+                    : (S.isKo ? '꺼짐' : 'Off'),
+              ),
+              value: ref.watch(googleCalendarEnabledProvider),
+              onChanged: (v) {
+                ref.read(googleCalendarEnabledProvider.notifier).state = v;
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // ─── 보안 ───
           Text(S.security,
               style: Theme.of(context)
