@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:js_interop';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:web/web.dart' as web;
 
 // ─── PhotoItem 모델 ───
 
@@ -74,7 +76,6 @@ class PhotoService {
   final String coupleId;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-  final ImagePicker _picker = ImagePicker();
 
   String get _myUid =>
       FirebaseAuth.instance.currentUser?.uid ?? 'me';
@@ -114,23 +115,19 @@ class PhotoService {
 
   // ─── 업로드 ───
 
-  /// 갤러리 picker → 다중 선택 → 업로드
+  /// 파일 선택 → 다중 선택 → 업로드 (웹 네이티브 input)
   Future<List<PhotoItem>> pickAndUpload({
     void Function(int done, int total)? onProgress,
   }) async {
-    final picked = await _picker.pickMultiImage(
-      maxWidth: 4096,
-      maxHeight: 4096,
-      imageQuality: 90,
-    );
-    if (picked.isEmpty) return [];
+    final files = await _pickFiles();
+    if (files.isEmpty) return [];
 
     final results = <PhotoItem>[];
-    for (int i = 0; i < picked.length; i++) {
+    for (int i = 0; i < files.length; i++) {
       try {
-        final item = await _uploadOne(picked[i]);
+        final item = await _uploadOne(files[i].$1, files[i].$2);
         results.add(item);
-        onProgress?.call(i + 1, picked.length);
+        onProgress?.call(i + 1, files.length);
       } catch (e) {
         debugPrint('[PhotoService] upload failed: $e');
       }
@@ -138,18 +135,66 @@ class PhotoService {
     return results;
   }
 
-  Future<PhotoItem> _uploadOne(XFile xfile) async {
+  /// 웹 네이티브 파일 선택 (input type=file)
+  Future<List<(Uint8List, String)>> _pickFiles() async {
+    final completer = Completer<List<(Uint8List, String)>>();
+    final input = web.HTMLInputElement()
+      ..type = 'file'
+      ..accept = 'image/*'
+      ..multiple = true;
+
+    input.onChange.listen((_) async {
+      final results = <(Uint8List, String)>[];
+      final fileList = input.files;
+      if (fileList != null) {
+        for (int i = 0; i < fileList.length; i++) {
+          final file = fileList.item(i);
+          if (file != null) {
+            final reader = web.FileReader();
+            final readerCompleter = Completer<Uint8List>();
+            reader.onLoadEnd.listen((_) {
+              final result = reader.result;
+              if (result != null) {
+                final jsBuffer = result as JSArrayBuffer;
+                final bytes = jsBuffer.toDart.asUint8List();
+                readerCompleter.complete(bytes);
+              } else {
+                readerCompleter.complete(Uint8List(0));
+              }
+            });
+            reader.readAsArrayBuffer(file);
+            final bytes = await readerCompleter.future;
+            if (bytes.isNotEmpty) {
+              results.add((bytes, file.name));
+            }
+          }
+        }
+      }
+      completer.complete(results);
+    });
+
+    input.click();
+    return completer.future;
+  }
+
+  Future<PhotoItem> _uploadOne(Uint8List bytes, String fileName) async {
     final now = DateTime.now();
     final dateKey =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final photoId = const Uuid().v4();
-    // 웹: xfile.path가 blob URL이라 확장자 추출 불가 → 무조건 jpg
-    const ext = 'jpg';
+
+    // 확장자 추출 (파일명에서)
+    final dotIdx = fileName.lastIndexOf('.');
+    String ext = 'jpg';
+    if (dotIdx > 0) {
+      final candidate = fileName.substring(dotIdx + 1).toLowerCase();
+      if (RegExp(r'^[a-z0-9]{2,5}$').hasMatch(candidate)) {
+        ext = candidate;
+      }
+    }
+
     final storagePath =
         'couples/$coupleId/photos/original/$photoId.$ext';
-
-    // 바이트 읽기 (웹 호환)
-    final bytes = await xfile.readAsBytes();
 
     // 1. Firestore 사전 문서
     final docRef = _itemsCol.doc(photoId);
@@ -167,7 +212,7 @@ class PhotoService {
       },
     });
 
-    // 2. Storage 업로드 (putData — 웹/모바일 모두 호환)
+    // 2. Storage 업로드
     final ref = _storage.ref(storagePath);
     final task = await ref.putData(
       bytes,

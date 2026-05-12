@@ -285,16 +285,25 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Future<void> _showPhotoPlaceholder(String dateKey) async {
-    final service = ref.read(photoServiceProvider);
-    final results = await service.pickAndUpload();
-    if (results.isNotEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(S.isKo
-              ? '${results.length}장 업로드 완료'
-              : '${results.length} photos uploaded'),
-        ),
-      );
+    try {
+      final service = ref.read(photoServiceProvider);
+      final results = await service.pickAndUpload();
+      if (results.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(S.isKo
+                ? '${results.length}장 업로드 완료'
+                : '${results.length} photos uploaded'),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[HomePage] photo upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
