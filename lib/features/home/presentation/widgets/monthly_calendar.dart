@@ -24,6 +24,8 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
     final selectedDay = ref.watch(selectedDateProvider);
     final eventCountsAsync = ref.watch(eventCountByDateProvider(_focusedMonth));
     final eventCounts = eventCountsAsync.valueOrNull ?? {};
+    final googleCountsAsync = ref.watch(googleEventCountsProvider(_focusedMonth));
+    final googleCounts = googleCountsAsync.valueOrNull ?? {};
 
     return Column(
       children: [
@@ -44,7 +46,8 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
             formatButtonVisible: false,
           ),
           eventLoader: (day) {
-            final cnt = eventCounts[_dateKey(day)] ?? 0;
+            final key = _dateKey(day);
+            final cnt = (eventCounts[key] ?? 0) + (googleCounts[key] ?? 0);
             return List.filled(cnt.clamp(0, 3), 'event');
           },
           onDaySelected: (selected, focused) {

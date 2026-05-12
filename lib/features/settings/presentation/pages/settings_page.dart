@@ -310,7 +310,7 @@ class SettingsPage extends ConsumerWidget {
                   leading: const Icon(Icons.logout, color: Colors.red),
                   title: Text(S.logout,
                       style: const TextStyle(color: Colors.red)),
-                  onTap: () => ref.read(authServiceProvider).signOut(),
+                  onTap: () => ref.read(authServiceProvider).signOut(ref),
                 ),
               ],
             ),

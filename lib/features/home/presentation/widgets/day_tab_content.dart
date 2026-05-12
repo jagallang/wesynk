@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/services/google_calendar_service.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -25,6 +27,11 @@ class DayTabContent extends ConsumerWidget {
       return _PhotoTabContent(dateKey: dateKey);
     }
 
+    // 일정 탭이면 Google Calendar 이벤트도 합침
+    if (type == ItemType.event) {
+      return _EventTabWithGoogle(dateKey: dateKey, itemsAsync: itemsAsync);
+    }
+
     return itemsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('${S.error}: $e')),
@@ -37,6 +44,98 @@ class DayTabContent extends ConsumerWidget {
           itemBuilder: (_, i) => ItemCard(item: items[i]),
         );
       },
+    );
+  }
+}
+
+// ─── 일정 탭 + Google Calendar 합산 ───
+
+class _EventTabWithGoogle extends ConsumerWidget {
+  final String dateKey;
+  final AsyncValue<List<Item>> itemsAsync;
+
+  const _EventTabWithGoogle({
+    required this.dateKey,
+    required this.itemsAsync,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final googleAsync = ref.watch(googleEventsForDateProvider(dateKey));
+    final googleEvents = googleAsync.valueOrNull ?? [];
+
+    return itemsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('${S.error}: $e')),
+      data: (items) {
+        final totalCount = items.length + googleEvents.length;
+        if (totalCount == 0) return const EmptyState(type: ItemType.event);
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: totalCount,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            // WeSync 일정 먼저, Google 일정 뒤에
+            if (i < items.length) {
+              return ItemCard(item: items[i]);
+            }
+            return _GoogleEventCard(
+                event: googleEvents[i - items.length]);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _GoogleEventCard extends StatelessWidget {
+  final CalendarEvent event;
+  const _GoogleEventCard({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final timeText = event.isAllDay
+        ? (S.isKo ? '종일' : 'All day')
+        : '${DateFormat('HH:mm').format(event.startTime)}'
+            ' - ${DateFormat('HH:mm').format(event.endTime)}';
+
+    return Card(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.event_outlined,
+                size: 20, color: Colors.blue.shade400),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(event.title,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w500)),
+                  Text(timeText,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('Google',
+                  style: TextStyle(
+                      fontSize: 10, color: Colors.blue.shade700)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

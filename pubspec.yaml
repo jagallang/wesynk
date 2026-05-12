@@ -49,6 +49,9 @@ dependencies:
   wesync_chat:
     path: packages/wesync_chat
   video_player: ^2.10.1
+  googleapis: ^15.0.0
+  googleapis_auth: ^2.0.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

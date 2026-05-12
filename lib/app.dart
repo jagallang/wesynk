@@ -50,7 +50,7 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  static const _bypassAuth = true;
+  static const _bypassAuth = false;
 
   @override
   Widget build(BuildContext context) {

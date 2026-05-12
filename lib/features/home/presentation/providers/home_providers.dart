@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../../core/services/google_calendar_service.dart';
 import '../../../../shared/models/item_model.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // ─── 앱 커스터마이즈 ───
 
@@ -116,4 +118,30 @@ final eventCountByDateProvider =
     firstDay: DateFormat('yyyy-MM-dd').format(firstDay),
     lastDay: DateFormat('yyyy-MM-dd').format(lastDay),
   );
+});
+
+// ─── Google Calendar ───
+
+/// Google Calendar 서비스 (로그인 시에만 사용 가능)
+final googleCalendarServiceProvider = Provider<GoogleCalendarService?>((ref) {
+  final headers = ref.watch(googleAuthHeadersProvider);
+  if (headers == null) return null;
+  return GoogleCalendarService(headers);
+});
+
+/// 선택된 날짜의 Google Calendar 이벤트
+final googleEventsForDateProvider =
+    FutureProvider.family<List<CalendarEvent>, String>((ref, dateKey) async {
+  final service = ref.watch(googleCalendarServiceProvider);
+  if (service == null) return [];
+  final date = DateTime.parse(dateKey);
+  return service.eventsForDate(date);
+});
+
+/// 월간 Google Calendar 이벤트 수 (캘린더 dot용)
+final googleEventCountsProvider =
+    FutureProvider.family<Map<String, int>, DateTime>((ref, month) async {
+  final service = ref.watch(googleCalendarServiceProvider);
+  if (service == null) return {};
+  return service.monthlyEventCounts(month);
 });
