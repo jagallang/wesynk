@@ -50,8 +50,6 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  static const _bypassAuth = false;
-
   @override
   Widget build(BuildContext context) {
     final security = ref.watch(securityProvider);
@@ -60,8 +58,6 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     if (security.pinEnabled && !isUnlocked) {
       return const PinScreen(mode: PinMode.unlock);
     }
-
-    if (_bypassAuth) return const HomePage();
 
     final authState = ref.watch(authStateProvider);
     return authState.when(

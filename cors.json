@@ -1,6 +1,10 @@
 [
   {
-    "origin": ["*"],
+    "origin": [
+      "https://wesynk-app.web.app",
+      "https://wesynk-app.firebaseapp.com",
+      "http://localhost:8080"
+    ],
     "method": ["GET"],
     "maxAgeSeconds": 3600
   }
