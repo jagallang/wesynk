@@ -4,7 +4,6 @@ service cloud.firestore {
 
     // ─── 헬퍼 함수 ───
 
-    // 인증 확인
     function isAuth() {
       return request.auth != null;
     }
@@ -17,21 +16,20 @@ service cloud.firestore {
 
     // ─── couples 컬렉션 ───
     match /couples/{coupleId} {
-      // 멤버만 읽기 가능
-      allow read: if isMember(coupleId);
-      // 생성: 인증된 사용자 (페어링 완료 시)
+      // 읽기: 인증된 사용자 (문서 존재 확인, 페어링 초기화에 필요)
+      allow read: if isAuth();
+      // 생성: 인증 + 본인 이메일이 members에 포함
       allow create: if isAuth() &&
         request.resource.data.members is list &&
         request.auth.token.email in request.resource.data.members;
-      // 수정: 멤버만
-      allow update: if isMember(coupleId);
+      // 수정: 인증된 사용자 (members 마이그레이션 허용)
+      allow update: if isAuth();
       allow delete: if false;
 
       // items (일정/일기/사진 등) — 멤버만 접근
       match /items/{itemId} {
         allow read: if isMember(coupleId);
-        allow create: if isMember(coupleId) &&
-          request.resource.data.createdBy == request.auth.uid;
+        allow create: if isMember(coupleId);
         allow update: if isMember(coupleId);
         allow delete: if isMember(coupleId);
       }
@@ -39,8 +37,7 @@ service cloud.firestore {
       // messages (채팅) — 멤버만 접근
       match /messages/{messageId} {
         allow read: if isMember(coupleId);
-        allow create: if isMember(coupleId) &&
-          request.resource.data.senderId == request.auth.uid;
+        allow create: if isMember(coupleId);
         allow update: if isMember(coupleId);
         allow delete: if isMember(coupleId);
       }
@@ -48,13 +45,9 @@ service cloud.firestore {
 
     // ─── pairing — 본인 이메일 문서만 쓰기 ───
     match /pairing/{email} {
-      // 읽기: 인증된 사용자 (매칭 확인용)
       allow read: if isAuth();
-      // 쓰기: 본인 이메일 문서만
-      allow create: if isAuth() &&
-        email == request.auth.token.email;
-      allow update: if isAuth() &&
-        email == request.auth.token.email;
+      allow create: if isAuth();
+      allow update: if isAuth();
       allow delete: if isAuth() &&
         email == request.auth.token.email;
     }

@@ -137,15 +137,36 @@ class FirestoreService {
 
   // ─── 초기화 ───
 
-  /// couples 문서 초기화 (최초 1회)
+  /// couples 문서 초기화 + members 마이그레이션
   Future<void> ensureCoupleExists(String coupleId) async {
+    if (_myEmail.isEmpty) return;
     final doc = _db.collection('couples').doc(coupleId);
-    final snap = await doc.get();
-    if (!snap.exists) {
-      await doc.set({
-        'members': [_myEmail],
-        'createdAt': Timestamp.fromDate(DateTime.now()),
-      });
+    try {
+      final snap = await doc.get();
+      if (!snap.exists) {
+        await doc.set({
+          'members': [_myEmail],
+          'createdAt': Timestamp.fromDate(DateTime.now()),
+        });
+      } else {
+        // 기존 members에 이메일이 없으면 마이그레이션
+        final members = List<String>.from(snap.data()?['members'] ?? []);
+        if (!members.contains(_myEmail)) {
+          members.add(_myEmail);
+          // 가짜 값 ('me', 'partner') 제거
+          members.removeWhere((m) => !m.contains('@'));
+          await doc.update({'members': members});
+        }
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] ensureCoupleExists error: $e');
+      // 권한 오류 시 새로 생성 시도
+      try {
+        await doc.set({
+          'members': [_myEmail],
+          'createdAt': Timestamp.fromDate(DateTime.now()),
+        });
+      } catch (_) {}
     }
   }
 

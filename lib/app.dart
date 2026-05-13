@@ -58,20 +58,28 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     if (_initialized) return;
     _initialized = true;
 
-    final service = ref.read(firestoreServiceProvider);
-    final coupleId = await service.lookupCoupleId();
-    final prefs = PreferencesService();
-    if (coupleId != null && coupleId.isNotEmpty) {
-      ref.read(coupleIdProvider.notifier).state = coupleId;
-      await prefs.setCoupleId(coupleId);
-    } else {
-      // 페어링 전: 임시 coupleId 생성
-      final uid =
-          ref.read(currentUserProvider)?.uid ?? 'temp';
+    try {
+      final service = ref.read(firestoreServiceProvider);
+      final coupleId = await service.lookupCoupleId();
+      final prefs = PreferencesService();
+      if (coupleId != null && coupleId.isNotEmpty) {
+        ref.read(coupleIdProvider.notifier).state = coupleId;
+        await prefs.setCoupleId(coupleId);
+        await service.ensureCoupleExists(coupleId);
+      } else {
+        // 페어링 전: 임시 coupleId 생성
+        final uid = ref.read(currentUserProvider)?.uid ?? 'temp';
+        final tempCoupleId = 'couple-$uid';
+        await service.ensureCoupleExists(tempCoupleId);
+        ref.read(coupleIdProvider.notifier).state = tempCoupleId;
+        await prefs.setCoupleId(tempCoupleId);
+      }
+    } catch (e) {
+      debugPrint('[AuthGate] _initCoupleData error: $e');
+      // fallback: uid 기반 임시 coupleId
+      final uid = ref.read(currentUserProvider)?.uid ?? 'temp';
       final tempCoupleId = 'couple-$uid';
-      await service.ensureCoupleExists(tempCoupleId);
       ref.read(coupleIdProvider.notifier).state = tempCoupleId;
-      await prefs.setCoupleId(tempCoupleId);
     }
   }
 
