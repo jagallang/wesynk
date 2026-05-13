@@ -94,15 +94,10 @@ class _HomePageState extends ConsumerState<HomePage>
         index: _navIndex,
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
-          if (coupleId.isNotEmpty)
-            ChatScreen(
-              coupleId: coupleId,
-              myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
-              onPickPhoto: () => _pickPhotoForChat(),
-            )
-          else
-            const Scaffold(
-                body: Center(child: CircularProgressIndicator())),
+          _ChatTab(
+            coupleId: coupleId,
+            onPickPhoto: () => _pickPhotoForChat(),
+          ),
           const AlbumPage(),
           const SettingsPage(),
         ],
@@ -319,6 +314,27 @@ class _CountTab extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// coupleId가 비어있으면 로딩, 있으면 ChatScreen 표시
+class _ChatTab extends StatelessWidget {
+  final String coupleId;
+  final Future<String?> Function() onPickPhoto;
+
+  const _ChatTab({required this.coupleId, required this.onPickPhoto});
+
+  @override
+  Widget build(BuildContext context) {
+    if (coupleId.isEmpty) {
+      return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
+    }
+    return ChatScreen(
+      coupleId: coupleId,
+      myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+      onPickPhoto: onPickPhoto,
     );
   }
 }
