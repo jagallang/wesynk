@@ -166,10 +166,12 @@ final firestoreServiceProvider = Provider<FirestoreService>(
 );
 
 /// 현재 coupleId (페어링 완료 시 동적 변경)
-/// 캐시된 값으로 초기화, 로그인 후 Firestore에서 최신값 조회
-final coupleIdProvider = StateProvider<String>(
-  (ref) => PreferencesService().coupleId,
-);
+/// 캐시 → uid fallback → 'default-couple' 최종 fallback
+final coupleIdProvider = StateProvider<String>((ref) {
+  final cached = PreferencesService().coupleId;
+  if (cached.isNotEmpty) return cached;
+  return 'default-couple';
+});
 
 /// 현재 선택된 날짜
 final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,33 +54,41 @@ class _AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<_AuthGate> {
   bool _initialized = false;
 
-  /// 로그인 후 coupleId 조회 및 초기화
-  Future<void> _initCoupleData() async {
+  void _ensureCoupleId() {
     if (_initialized) return;
     _initialized = true;
 
+    // 즉시 동기적으로 coupleId 설정 (uid 기반)
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'temp';
+    final cached = PreferencesService().coupleId;
+    final coupleId = cached.isNotEmpty ? cached : 'couple-$uid';
+
+    if (ref.read(coupleIdProvider).isEmpty) {
+      ref.read(coupleIdProvider.notifier).state = coupleId;
+    }
+
+    // 비동기로 Firestore에서 최신 coupleId 조회 (백그라운드)
+    _initCoupleDataAsync(uid);
+  }
+
+  Future<void> _initCoupleDataAsync(String uid) async {
     try {
       final service = ref.read(firestoreServiceProvider);
-      final coupleId = await service.lookupCoupleId();
+      final matched = await service.lookupCoupleId();
       final prefs = PreferencesService();
-      if (coupleId != null && coupleId.isNotEmpty) {
-        ref.read(coupleIdProvider.notifier).state = coupleId;
-        await prefs.setCoupleId(coupleId);
-        await service.ensureCoupleExists(coupleId);
+
+      if (matched != null && matched.isNotEmpty) {
+        ref.read(coupleIdProvider.notifier).state = matched;
+        await prefs.setCoupleId(matched);
+        await service.ensureCoupleExists(matched);
       } else {
-        // 페어링 전: 임시 coupleId 생성
-        final uid = ref.read(currentUserProvider)?.uid ?? 'temp';
         final tempCoupleId = 'couple-$uid';
         await service.ensureCoupleExists(tempCoupleId);
         ref.read(coupleIdProvider.notifier).state = tempCoupleId;
         await prefs.setCoupleId(tempCoupleId);
       }
     } catch (e) {
-      debugPrint('[AuthGate] _initCoupleData error: $e');
-      // fallback: uid 기반 임시 coupleId
-      final uid = ref.read(currentUserProvider)?.uid ?? 'temp';
-      final tempCoupleId = 'couple-$uid';
-      ref.read(coupleIdProvider.notifier).state = tempCoupleId;
+      debugPrint('[AuthGate] _initCoupleDataAsync error: $e');
     }
   }
 
@@ -105,8 +114,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
           _initialized = false;
           return const LoginPage();
         }
-        // 로그인 완료 → coupleId 초기화
-        _initCoupleData();
+        _ensureCoupleId();
         return const HomePage();
       },
     );
