@@ -81,8 +81,6 @@ class FirestoreService {
   }) {
     return _itemsCol(coupleId)
         .where('type', isEqualTo: 'event')
-        .where('date', isGreaterThanOrEqualTo: firstDay)
-        .where('date', isLessThanOrEqualTo: lastDay)
         .snapshots()
         .map((snap) {
       final counts = <String, int>{};
@@ -90,7 +88,9 @@ class FirestoreService {
         final data = doc.data();
         if (data['deletedAt'] != null) continue;
         final d = data['date'] as String? ?? '';
-        counts[d] = (counts[d] ?? 0) + 1;
+        if (d.compareTo(firstDay) >= 0 && d.compareTo(lastDay) <= 0) {
+          counts[d] = (counts[d] ?? 0) + 1;
+        }
       }
       return counts;
     });
