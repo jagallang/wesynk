@@ -87,16 +87,22 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
+    final coupleId = ref.watch(coupleIdProvider);
+
     return Scaffold(
       body: IndexedStack(
         index: _navIndex,
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
-          ChatScreen(
-            coupleId: ref.watch(coupleIdProvider),
-            myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
-            onPickPhoto: () => _pickPhotoForChat(),
-          ),
+          if (coupleId.isNotEmpty)
+            ChatScreen(
+              coupleId: coupleId,
+              myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+              onPickPhoto: () => _pickPhotoForChat(),
+            )
+          else
+            const Scaffold(
+                body: Center(child: CircularProgressIndicator())),
           const AlbumPage(),
           const SettingsPage(),
         ],
