@@ -105,8 +105,9 @@ exports.generateThumbnail = onObjectFinalized(
  * 이미지 썸네일 생성
  */
 async function processImage(inputPath, baseName, parentDir, bucket) {
-  const image = sharp(inputPath);
-  const meta = await image.metadata();
+  // rotate()로 EXIF orientation 적용 후 메타데이터 추출
+  const rotatedBuffer = await sharp(inputPath).rotate().toBuffer();
+  const meta = await sharp(rotatedBuffer).metadata();
   const result = { width: meta.width, height: meta.height, thumbnailReady: true };
 
   for (const size of THUMB_SIZES) {
@@ -115,6 +116,7 @@ async function processImage(inputPath, baseName, parentDir, bucket) {
     const tempThumb = path.join(os.tmpdir(), thumbName);
 
     await sharp(inputPath)
+      .rotate() // EXIF orientation 자동 적용
       .resize(size, size, { fit: "cover" })
       .jpeg({ quality: 80 })
       .toFile(tempThumb);
