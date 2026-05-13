@@ -2,39 +2,61 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 인증 확인 헬퍼
+    // ─── 헬퍼 함수 ───
+
+    // 인증 확인
     function isAuth() {
       return request.auth != null;
     }
 
-    // couples 컬렉션 — 멤버만 접근
-    match /couples/{coupleId} {
-      allow read: if isAuth();
-      allow write: if isAuth();
+    // 해당 커플의 멤버인지 확인 (members 배열에 이메일 포함)
+    function isMember(coupleId) {
+      return isAuth() &&
+        request.auth.token.email in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
 
-      // items (일정/일기/사진 등) — 인증된 사용자만
+    // ─── couples 컬렉션 ───
+    match /couples/{coupleId} {
+      // 멤버만 읽기 가능
+      allow read: if isMember(coupleId);
+      // 생성: 인증된 사용자 (페어링 완료 시)
+      allow create: if isAuth() &&
+        request.resource.data.members is list &&
+        request.auth.token.email in request.resource.data.members;
+      // 수정: 멤버만
+      allow update: if isMember(coupleId);
+      allow delete: if false;
+
+      // items (일정/일기/사진 등) — 멤버만 접근
       match /items/{itemId} {
-        allow read: if isAuth();
-        allow create: if isAuth();
-        allow update: if isAuth();
-        allow delete: if isAuth();
+        allow read: if isMember(coupleId);
+        allow create: if isMember(coupleId) &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update: if isMember(coupleId);
+        allow delete: if isMember(coupleId);
       }
 
-      // messages (채팅) — 인증된 사용자만
+      // messages (채팅) — 멤버만 접근
       match /messages/{messageId} {
-        allow read: if isAuth();
-        allow create: if isAuth();
-        allow update: if isAuth();
-        allow delete: if isAuth();
+        allow read: if isMember(coupleId);
+        allow create: if isMember(coupleId) &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if isMember(coupleId);
+        allow delete: if isMember(coupleId);
       }
     }
 
-    // pairing — 본인 이메일 문서만 쓰기, 읽기는 인증된 사용자
+    // ─── pairing — 본인 이메일 문서만 쓰기 ───
     match /pairing/{email} {
+      // 읽기: 인증된 사용자 (매칭 확인용)
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+      // 쓰기: 본인 이메일 문서만
+      allow create: if isAuth() &&
+        email == request.auth.token.email;
+      allow update: if isAuth() &&
+        email == request.auth.token.email;
+      allow delete: if isAuth() &&
+        email == request.auth.token.email;
     }
   }
 }

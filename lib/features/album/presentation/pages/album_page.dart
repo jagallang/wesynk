@@ -1,11 +1,12 @@
 import 'dart:ui_web' as ui_web;
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:web/web.dart' as web;
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
+import '../../../../shared/widgets/photo_detail_dialog.dart';
+import '../../../../shared/widgets/photo_thumbnail.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
 
 class AlbumPage extends ConsumerStatefulWidget {
@@ -296,7 +297,7 @@ class _GroupedPhotoGrid extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        _PhotoThumb(
+                        PhotoThumbnail(
                             photo: photo, photoService: photoService),
                         if (photo.isVideo)
                           const Center(
@@ -366,51 +367,8 @@ class _GroupedPhotoGrid extends StatelessWidget {
     if (photo.isVideo) {
       _showVideoDetail(context, photo);
     } else {
-      _showImageDetail(context, photo);
+      showPhotoDetailDialog(context, photoService, photo);
     }
-  }
-
-  void _showImageDetail(BuildContext context, PhotoItem photo) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FutureBuilder<String>(
-              future: photoService.originalUrl(photo),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator()));
-                }
-                return CachedNetworkImage(
-                  imageUrl: snap.data!,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator())),
-                  errorWidget: (_, __, ___) => const SizedBox(
-                      height: 200, child: Icon(Icons.broken_image)),
-                );
-              },
-            ),
-            if (photo.caption != null)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(photo.caption!),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Text(photo.date,
-                  style:
-                      const TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showVideoDetail(BuildContext context, PhotoItem photo) {
@@ -440,77 +398,6 @@ class _GroupedPhotoGrid extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ─── 썸네일 타일 ───
-
-class _PhotoThumb extends StatefulWidget {
-  final PhotoItem photo;
-  final PhotoService photoService;
-
-  const _PhotoThumb({required this.photo, required this.photoService});
-
-  @override
-  State<_PhotoThumb> createState() => _PhotoThumbState();
-}
-
-class _PhotoThumbState extends State<_PhotoThumb> {
-  late Future<String> _urlFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
-  }
-
-  @override
-  void didUpdateWidget(_PhotoThumb old) {
-    super.didUpdateWidget(old);
-    if (old.photo.id != widget.photo.id) {
-      _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.photo.uploading) {
-      return Container(
-        color: Colors.grey.shade200,
-        child: const Center(
-            child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2))),
-      );
-    }
-
-    // 영상: 썸네일 준비됐으면 썸네일 표시, 아니면 아이콘
-    if (widget.photo.isVideo && !widget.photo.thumbnailReady) {
-      return Container(
-        color: Colors.grey.shade800,
-        child: const Center(
-          child: Icon(Icons.videocam, size: 32, color: Colors.white54),
-        ),
-      );
-    }
-
-    return FutureBuilder<String>(
-      future: _urlFuture,
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return Container(color: Colors.grey.shade200);
-        }
-        return CachedNetworkImage(
-          imageUrl: snap.data!,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Colors.grey.shade200),
-          errorWidget: (_, __, ___) => Container(
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image)),
-        );
-      },
     );
   }
 }

@@ -1,41 +1,79 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../../shared/models/item_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const defaultCoupleId = 'default-couple';
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _myEmail =>
+      FirebaseAuth.instance.currentUser?.email?.toLowerCase() ?? '';
 
   CollectionReference<Map<String, dynamic>> _itemsCol(String coupleId) =>
       _db.collection('couples').doc(coupleId).collection('items');
 
+  // ─── 날짜 키 유틸 ───
+
+  static String toDateKey(DateTime date) =>
+      DateFormat('yyyy-MM-dd').format(date);
+
+  // ─── 사용자 coupleId 조회 ───
+
+  /// 현재 로그인 사용자의 coupleId를 pairing 문서에서 조회.
+  /// 매칭되지 않았으면 null 반환.
+  Future<String?> lookupCoupleId() async {
+    if (_myEmail.isEmpty) return null;
+    final doc = await _db.collection('pairing').doc(_myEmail).get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+    if (data['matched'] == true) {
+      return data['matchedCoupleId'] as String?;
+    }
+    return null;
+  }
+
+  /// coupleId 실시간 스트림 (매칭 감지용)
+  Stream<String?> coupleIdStream() {
+    if (_myEmail.isEmpty) return Stream.value(null);
+    return _db
+        .collection('pairing')
+        .doc(_myEmail)
+        .snapshots()
+        .map((snap) {
+      final data = snap.data();
+      if (data == null) return null;
+      if (data['matched'] == true) {
+        return data['matchedCoupleId'] as String?;
+      }
+      return null;
+    });
+  }
+
+  // ─── 아이템 CRUD ───
+
   /// 특정 날짜 + 타입의 아이템 실시간 스트림
-  /// 단순 쿼리 (date만 필터) + 클라이언트에서 type 필터/정렬
   Stream<List<Item>> itemsStream({
     required String coupleId,
     required String dateKey,
     required ItemType type,
   }) {
-    debugPrint('[FirestoreService] itemsStream: date=$dateKey, type=${type.name}');
     return _itemsCol(coupleId)
         .where('date', isEqualTo: dateKey)
         .snapshots()
         .map((snap) {
-      debugPrint('[FirestoreService] got ${snap.docs.length} docs for date=$dateKey');
       final items = snap.docs
           .map(Item.fromDoc)
           .where((item) => item.type == type)
           .where((item) => item.deletedAt == null)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      debugPrint('[FirestoreService] filtered to ${items.length} items for type=${type.name}');
       return items;
     });
   }
 
   /// 월간 이벤트 개수 (캘린더 마커용)
-  /// 단순 쿼리 (type만 필터) + 클라이언트에서 날짜 범위 필터
   Stream<Map<String, int>> eventCountsStream({
     required String coupleId,
     required String firstDay,
@@ -43,6 +81,8 @@ class FirestoreService {
   }) {
     return _itemsCol(coupleId)
         .where('type', isEqualTo: 'event')
+        .where('date', isGreaterThanOrEqualTo: firstDay)
+        .where('date', isLessThanOrEqualTo: lastDay)
         .snapshots()
         .map((snap) {
       final counts = <String, int>{};
@@ -50,9 +90,7 @@ class FirestoreService {
         final data = doc.data();
         if (data['deletedAt'] != null) continue;
         final d = data['date'] as String? ?? '';
-        if (d.compareTo(firstDay) >= 0 && d.compareTo(lastDay) <= 0) {
-          counts[d] = (counts[d] ?? 0) + 1;
-        }
+        counts[d] = (counts[d] ?? 0) + 1;
       }
       return counts;
     });
@@ -63,9 +101,7 @@ class FirestoreService {
     required String coupleId,
     required Item item,
   }) async {
-    debugPrint('[FirestoreService] addItem: type=${item.type.name}, date=${item.date}');
     await _itemsCol(coupleId).add(item.toMap());
-    debugPrint('[FirestoreService] addItem: 성공');
   }
 
   /// 아이템 체크 토글
@@ -99,13 +135,15 @@ class FirestoreService {
     });
   }
 
+  // ─── 초기화 ───
+
   /// couples 문서 초기화 (최초 1회)
   Future<void> ensureCoupleExists(String coupleId) async {
     final doc = _db.collection('couples').doc(coupleId);
     final snap = await doc.get();
     if (!snap.exists) {
       await doc.set({
-        'members': ['me', 'partner'],
+        'members': [_myEmail],
         'createdAt': Timestamp.fromDate(DateTime.now()),
       });
     }
@@ -118,17 +156,15 @@ class FirestoreService {
     if (existing.docs.isNotEmpty) return;
 
     final today = DateTime.now();
-    final todayStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final todayStr = toDateKey(today);
     final yesterday = today.subtract(const Duration(days: 1));
-    final yesterdayStr =
-        '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+    final yesterdayStr = toDateKey(yesterday);
 
     final samples = [
       {
         'type': 'event',
         'date': todayStr,
-        'createdBy': 'me',
+        'createdBy': _myUid,
         'createdAt': Timestamp.fromDate(today),
         'deletedAt': null,
         'payload': {
@@ -141,9 +177,9 @@ class FirestoreService {
       {
         'type': 'note',
         'date': todayStr,
-        'createdBy': 'me',
-        'createdAt': Timestamp.fromDate(
-            today.subtract(const Duration(hours: 1))),
+        'createdBy': _myUid,
+        'createdAt':
+            Timestamp.fromDate(today.subtract(const Duration(hours: 1))),
         'deletedAt': null,
         'payload': {
           'body': '오늘 날씨가 너무 좋았다. 같이 산책하고 싶다.',
@@ -153,14 +189,13 @@ class FirestoreService {
       {
         'type': 'date',
         'date': todayStr,
-        'createdBy': 'me',
-        'createdAt': Timestamp.fromDate(
-            today.subtract(const Duration(hours: 2))),
+        'createdBy': _myUid,
+        'createdAt':
+            Timestamp.fromDate(today.subtract(const Duration(hours: 2))),
         'deletedAt': null,
         'payload': {
           'title': '성수동 카페 투어',
-          'place': {'name': '○○카페', 'lat': 37.54, 'lng': 127.05},
-          'cost': {'amount': 45000, 'currency': 'KRW', 'payer': 'me'},
+          'place': {'name': '○○카페'},
           'rating': 4,
           'review': '케이크가 진짜 맛있었음',
         },
@@ -168,7 +203,7 @@ class FirestoreService {
       {
         'type': 'event',
         'date': yesterdayStr,
-        'createdBy': 'partner',
+        'createdBy': 'partner-sample',
         'createdAt': Timestamp.fromDate(yesterday),
         'deletedAt': null,
         'payload': {
@@ -181,7 +216,7 @@ class FirestoreService {
       {
         'type': 'note',
         'date': yesterdayStr,
-        'createdBy': 'me',
+        'createdBy': _myUid,
         'createdAt': Timestamp.fromDate(
             yesterday.subtract(const Duration(hours: 1))),
         'deletedAt': null,
@@ -229,6 +264,8 @@ class FirestoreService {
   }
 
   /// 양방향 매칭 확인 (이메일 + 코드)
+  /// 보안 규칙으로 인해 자기 문서만 업데이트 가능.
+  /// 상대방의 매칭 상태는 상대방 클라이언트가 pairingStatusStream으로 감지.
   Future<String?> _checkMutualMatch(
       String myEmail, String partnerEmail, String myCoupleId, String myCodeHash) async {
     final partnerDoc =
@@ -259,20 +296,15 @@ class FirestoreService {
     // 매칭 성공! 먼저 등록한 사람의 coupleId 사용
     final matchedCoupleId = theirCoupleId ?? myCoupleId;
 
-    // 양쪽 문서에 매칭 상태 기록
+    // 내 문서만 매칭 상태 기록 (상대방은 자기 클라이언트에서 감지 후 업데이트)
     final now = Timestamp.fromDate(DateTime.now());
     await _db.collection('pairing').doc(myEmail).update({
       'matched': true,
       'matchedCoupleId': matchedCoupleId,
       'matchedAt': now,
     });
-    await _db.collection('pairing').doc(partnerEmail).update({
-      'matched': true,
-      'matchedCoupleId': matchedCoupleId,
-      'matchedAt': now,
-    });
 
-    // couples 문서 업데이트
+    // couples 문서 생성/업데이트
     await _db.collection('couples').doc(matchedCoupleId).set({
       'members': [myEmail, partnerEmail],
       'createdAt': now,
@@ -291,15 +323,43 @@ class FirestoreService {
         .map((snap) => snap.data());
   }
 
+  /// 상대방의 매칭 상태를 감지하여 내 문서도 업데이트
+  /// pairingStatusStream에서 matched가 아닌 상태일 때 호출
+  Future<String?> checkAndUpdateMatch(String myEmail) async {
+    final myKey = myEmail.toLowerCase();
+    final myDoc = await _db.collection('pairing').doc(myKey).get();
+    if (!myDoc.exists) return null;
+
+    final myData = myDoc.data()!;
+    if (myData['matched'] == true) {
+      return myData['matchedCoupleId'] as String?;
+    }
+
+    final partnerEmail = myData['partnerEmail'] as String?;
+    if (partnerEmail == null) return null;
+
+    final partnerDoc = await _db.collection('pairing').doc(partnerEmail).get();
+    if (!partnerDoc.exists) return null;
+
+    final partnerData = partnerDoc.data()!;
+    if (partnerData['matched'] == true &&
+        partnerData['matchedCoupleId'] != null) {
+      // 상대방이 이미 매칭 완료 → 내 문서도 업데이트
+      final matchedCoupleId = partnerData['matchedCoupleId'] as String;
+      await _db.collection('pairing').doc(myKey).update({
+        'matched': true,
+        'matchedCoupleId': matchedCoupleId,
+        'matchedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return matchedCoupleId;
+    }
+
+    return null;
+  }
+
   /// 페어링 해제
   Future<void> disconnectPairing(String myEmail) async {
-    final doc = await _db.collection('pairing').doc(myEmail.toLowerCase()).get();
-    if (doc.exists) {
-      final partnerEmail = doc.data()?['partnerEmail'] as String?;
-      await _db.collection('pairing').doc(myEmail.toLowerCase()).delete();
-      if (partnerEmail != null) {
-        await _db.collection('pairing').doc(partnerEmail).delete();
-      }
-    }
+    // 본인 문서만 삭제 (보안 규칙에 의해 상대방 문서는 삭제 불가)
+    await _db.collection('pairing').doc(myEmail.toLowerCase()).delete();
   }
 }

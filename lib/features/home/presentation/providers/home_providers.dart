@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/services/google_calendar_service.dart';
+import '../../../../core/services/preferences_service.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -72,8 +73,41 @@ const presetBackgrounds = <({String name, Color color})>[
   (name: '다크', color: Color(0xFF1E1E2E)),
 ];
 
-final appCustomizationProvider = StateProvider<AppCustomization>(
-  (ref) => const AppCustomization(),
+/// 앱 커스터마이즈 (영구 저장 연동)
+class AppCustomizationNotifier extends StateNotifier<AppCustomization> {
+  AppCustomizationNotifier() : super(const AppCustomization()) {
+    _load();
+  }
+
+  void _load() {
+    final p = PreferencesService();
+    // presetIcons에서 codePoint로 아이콘 매칭 (tree-shaking 호환)
+    final savedCodePoint = p.appIcon;
+    final matchedIcon = presetIcons
+        .where((preset) => preset.icon.codePoint == savedCodePoint)
+        .firstOrNull
+        ?.icon ?? Icons.favorite;
+    state = AppCustomization(
+      appName: p.appName,
+      themeColor: Color(p.themeColor),
+      appIcon: matchedIcon,
+      backgroundColor: Color(p.bgColor),
+    );
+  }
+
+  Future<void> update(AppCustomization c) async {
+    state = c;
+    final p = PreferencesService();
+    await p.setAppName(c.appName);
+    await p.setThemeColor(c.themeColor.toARGB32());
+    await p.setAppIcon(c.appIcon.codePoint);
+    await p.setBgColor(c.backgroundColor.toARGB32());
+  }
+}
+
+final appCustomizationProvider =
+    StateNotifierProvider<AppCustomizationNotifier, AppCustomization>(
+  (ref) => AppCustomizationNotifier(),
 );
 
 // ─── 계정별 일정 색상 ───
@@ -87,19 +121,42 @@ const calendarColorPresets = <({String name, Color color})>[
   (name: '핑크색', color: Color(0xFFD81B60)),
 ];
 
+/// 일정 색상 (영구 저장 연동)
+class _ColorNotifier extends StateNotifier<Color> {
+  final Future<void> Function(int) _save;
+  _ColorNotifier(int initial, this._save) : super(Color(initial));
+
+  Future<void> update(Color c) async {
+    state = c;
+    await _save(c.toARGB32());
+  }
+}
+
 /// 내 일정 색상
-final myEventColorProvider = StateProvider<Color>(
-  (ref) => const Color(0xFFE53935), // 빨간색
+final myEventColorProvider =
+    StateNotifierProvider<_ColorNotifier, Color>(
+  (ref) {
+    final p = PreferencesService();
+    return _ColorNotifier(p.myEventColor, p.setMyEventColor);
+  },
 );
 
 /// 파트너 일정 색상
-final partnerEventColorProvider = StateProvider<Color>(
-  (ref) => const Color(0xFF1E88E5), // 파란색
+final partnerEventColorProvider =
+    StateNotifierProvider<_ColorNotifier, Color>(
+  (ref) {
+    final p = PreferencesService();
+    return _ColorNotifier(p.partnerEventColor, p.setPartnerEventColor);
+  },
 );
 
 /// Google 일정 색상
-final googleEventColorProvider = StateProvider<Color>(
-  (ref) => const Color(0xFF8E24AA), // 보라색
+final googleEventColorProvider =
+    StateNotifierProvider<_ColorNotifier, Color>(
+  (ref) {
+    final p = PreferencesService();
+    return _ColorNotifier(p.googleEventColor, p.setGoogleEventColor);
+  },
 );
 
 // ─── Firestore 서비스 ───
@@ -108,9 +165,10 @@ final firestoreServiceProvider = Provider<FirestoreService>(
   (ref) => FirestoreService(),
 );
 
-/// 현재 coupleId (초대 수락 시 동적 변경)
+/// 현재 coupleId (페어링 완료 시 동적 변경)
+/// 캐시된 값으로 초기화, 로그인 후 Firestore에서 최신값 조회
 final coupleIdProvider = StateProvider<String>(
-  (ref) => FirestoreService.defaultCoupleId,
+  (ref) => PreferencesService().coupleId,
 );
 
 /// 현재 선택된 날짜
@@ -125,9 +183,11 @@ final selectedDateKeyProvider = Provider<String>((ref) {
 /// 특정 날짜 + 특정 타입의 아이템 (Firestore 실시간 스트림)
 final itemsForDateAndTypeProvider = StreamProvider.family<List<Item>,
     ({String dateKey, ItemType type})>((ref, params) {
+  final coupleId = ref.watch(coupleIdProvider);
+  if (coupleId.isEmpty) return Stream.value([]);
   final service = ref.watch(firestoreServiceProvider);
   return service.itemsStream(
-    coupleId: FirestoreService.defaultCoupleId,
+    coupleId: coupleId,
     dateKey: params.dateKey,
     type: params.type,
   );
@@ -136,11 +196,13 @@ final itemsForDateAndTypeProvider = StreamProvider.family<List<Item>,
 /// 월별 이벤트 개수 (캘린더 dot 마커용, Firestore 실시간 스트림)
 final eventCountByDateProvider =
     StreamProvider.family<Map<String, int>, DateTime>((ref, month) {
+  final coupleId = ref.watch(coupleIdProvider);
+  if (coupleId.isEmpty) return Stream.value({});
   final service = ref.watch(firestoreServiceProvider);
   final firstDay = DateTime(month.year, month.month, 1);
   final lastDay = DateTime(month.year, month.month + 1, 0);
   return service.eventCountsStream(
-    coupleId: FirestoreService.defaultCoupleId,
+    coupleId: coupleId,
     firstDay: DateFormat('yyyy-MM-dd').format(firstDay),
     lastDay: DateFormat('yyyy-MM-dd').format(lastDay),
   );
@@ -148,8 +210,10 @@ final eventCountByDateProvider =
 
 // ─── Google Calendar ───
 
-/// Google Calendar 연동 on/off
-final googleCalendarEnabledProvider = StateProvider<bool>((ref) => false);
+/// Google Calendar 연동 on/off (영구 저장)
+final googleCalendarEnabledProvider = StateProvider<bool>(
+  (ref) => PreferencesService().googleCalendarEnabled,
+);
 
 /// Google Calendar 서비스 (연동 ON + 로그인 시에만 사용 가능)
 final googleCalendarServiceProvider = Provider<GoogleCalendarService?>((ref) {

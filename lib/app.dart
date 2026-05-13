@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wesync_chat/wesync_chat.dart' show CS;
 import 'core/constants/app_strings.dart';
+import 'core/services/preferences_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -50,6 +51,30 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
+  bool _initialized = false;
+
+  /// 로그인 후 coupleId 조회 및 초기화
+  Future<void> _initCoupleData() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    final service = ref.read(firestoreServiceProvider);
+    final coupleId = await service.lookupCoupleId();
+    final prefs = PreferencesService();
+    if (coupleId != null && coupleId.isNotEmpty) {
+      ref.read(coupleIdProvider.notifier).state = coupleId;
+      await prefs.setCoupleId(coupleId);
+    } else {
+      // 페어링 전: 임시 coupleId 생성
+      final uid =
+          ref.read(currentUserProvider)?.uid ?? 'temp';
+      final tempCoupleId = 'couple-$uid';
+      await service.ensureCoupleExists(tempCoupleId);
+      ref.read(coupleIdProvider.notifier).state = tempCoupleId;
+      await prefs.setCoupleId(tempCoupleId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final security = ref.watch(securityProvider);
@@ -68,8 +93,12 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         body: Center(child: Text('${S.error}: $e')),
       ),
       data: (user) {
-        debugPrint('[AuthGate] user=${user?.email ?? 'null'}');
-        if (user == null) return const LoginPage();
+        if (user == null) {
+          _initialized = false;
+          return const LoginPage();
+        }
+        // 로그인 완료 → coupleId 초기화
+        _initCoupleData();
         return const HomePage();
       },
     );

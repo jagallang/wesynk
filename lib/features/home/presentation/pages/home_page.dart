@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/firestore_service.dart';
 import 'package:wesync_chat/wesync_chat.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../album/presentation/pages/album_page.dart';
 import '../../../security/presentation/pages/pin_screen.dart';
@@ -14,6 +12,7 @@ import '../../../settings/presentation/pages/settings_page.dart';
 import '../providers/home_providers.dart';
 import '../providers/photo_providers.dart';
 import '../widgets/day_tab_content.dart';
+import '../widgets/item_form_sheets.dart';
 import '../widgets/monthly_calendar.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -94,8 +93,8 @@ class _HomePageState extends ConsumerState<HomePage>
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
           ChatScreen(
-            coupleId: 'default-couple',
-            myUid: 'me',
+            coupleId: ref.watch(coupleIdProvider),
+            myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
             onPickPhoto: () => _pickPhotoForChat(),
           ),
           const AlbumPage(),
@@ -138,159 +137,26 @@ class _HomePageState extends ConsumerState<HomePage>
 
     switch (type) {
       case ItemType.event:
-        _showEventForm(dateKey);
+        showEventForm(context, dateKey, _addItem);
       case ItemType.note:
-        _showNoteForm(dateKey);
+        showNoteForm(context, dateKey, _addItem);
       case ItemType.photo:
-        _showPhotoPlaceholder(dateKey);
+        _uploadPhoto();
       case ItemType.date:
-        _showDateForm(dateKey);
+        showDateForm(context, dateKey, _addItem);
     }
   }
 
   void _addItem(Item item) {
+    final coupleId = ref.read(coupleIdProvider);
+    if (coupleId.isEmpty) return;
     ref.read(firestoreServiceProvider).addItem(
-          coupleId: FirestoreService.defaultCoupleId,
+          coupleId: coupleId,
           item: item,
         );
   }
 
-  void _showEventForm(String dateKey) {
-    final titleCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(S.addTitle(S.tabTravel),
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(
-                labelText: S.fieldTitle,
-                border: const OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: locationCtrl,
-              decoration: InputDecoration(
-                labelText: S.fieldLocation,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                if (titleCtrl.text.trim().isEmpty) return;
-                _addItem(Item(
-                  id: const Uuid().v4(),
-                  type: ItemType.event,
-                  date: dateKey,
-                  createdBy: 'me',
-                  createdAt: DateTime.now(),
-                  payload: {
-                    'title': titleCtrl.text.trim(),
-                    'location': locationCtrl.text.trim(),
-                    'startAt': DateTime.now().toIso8601String(),
-                    'allDay': false,
-                  },
-                ));
-                Navigator.pop(ctx);
-              },
-              child: Text(S.add),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNoteForm(String dateKey) {
-    final bodyCtrl = TextEditingController();
-    String selectedMood = '😊';
-    final moods = ['😊', '😍', '😢', '😡', '🥺', '🎬', '📝', '🌸'];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(S.noteAdd, style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                children: moods
-                    .map((m) => GestureDetector(
-                          onTap: () => setSheetState(() => selectedMood = m),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: selectedMood == m
-                                  ? AppColors.primaryLight
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child:
-                                Text(m, style: const TextStyle(fontSize: 24)),
-                          ),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: bodyCtrl,
-                decoration: InputDecoration(
-                  hintText: S.noteHint,
-                  border: const OutlineInputBorder(),
-                ),
-                maxLines: null,
-                minLines: 6,
-                keyboardType: TextInputType.multiline,
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () {
-                  if (bodyCtrl.text.trim().isEmpty) return;
-                  _addItem(Item(
-                    id: const Uuid().v4(),
-                    type: ItemType.note,
-                    date: dateKey,
-                    createdBy: 'me',
-                    createdAt: DateTime.now(),
-                    payload: {
-                      'body': bodyCtrl.text.trim(),
-                      'mood': selectedMood,
-                    },
-                  ));
-                  Navigator.pop(ctx);
-                },
-                child: Text(S.add),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showPhotoPlaceholder(String dateKey) async {
+  Future<void> _uploadPhoto() async {
     try {
       final service = ref.read(photoServiceProvider);
       final results = await service.pickAndUpload();
@@ -313,7 +179,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  /// 채팅에서 사진 선택 → 앨범 업로드 → URL 반환
   Future<String?> _pickPhotoForChat() async {
     try {
       final service = ref.read(photoServiceProvider);
@@ -326,93 +191,6 @@ class _HomePageState extends ConsumerState<HomePage>
       debugPrint('[HomePage] chat photo error: $e');
       return null;
     }
-  }
-
-  void _showDateForm(String dateKey) {
-    final titleCtrl = TextEditingController();
-    final placeCtrl = TextEditingController();
-    final reviewCtrl = TextEditingController();
-    int rating = 3;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(S.dateRecord, style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: S.fieldTitle,
-                  border: const OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: placeCtrl,
-                decoration: InputDecoration(
-                  labelText: S.fieldPlace,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(S.fieldRating),
-                  ...List.generate(5, (i) {
-                    return IconButton(
-                      icon: Icon(
-                        i < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                      ),
-                      onPressed: () => setSheetState(() => rating = i + 1),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reviewCtrl,
-                decoration: InputDecoration(
-                  hintText: S.fieldReview,
-                  border: const OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () {
-                  if (titleCtrl.text.trim().isEmpty) return;
-                  _addItem(Item(
-                    id: const Uuid().v4(),
-                    type: ItemType.date,
-                    date: dateKey,
-                    createdBy: 'me',
-                    createdAt: DateTime.now(),
-                    payload: {
-                      'title': titleCtrl.text.trim(),
-                      'place': {'name': placeCtrl.text.trim()},
-                      'rating': rating,
-                      'review': reviewCtrl.text.trim(),
-                    },
-                  ));
-                  Navigator.pop(ctx);
-                },
-                child: Text(S.add),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

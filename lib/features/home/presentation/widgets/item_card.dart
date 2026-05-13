@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../shared/models/item_model.dart';
 import '../providers/home_providers.dart';
+import 'item_edit_sheets.dart';
 
 class ItemCard extends ConsumerWidget {
   final Item item;
@@ -12,11 +14,12 @@ class ItemCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+    final coupleId = ref.watch(coupleIdProvider);
     final payload = item.payload;
     final theme = Theme.of(context);
 
-    final eventColor = item.createdBy == 'me'
+    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final eventColor = item.createdBy == myUid
         ? ref.watch(myEventColorProvider)
         : ref.watch(partnerEventColorProvider);
 
@@ -26,7 +29,6 @@ class ItemCard extends ConsumerWidget {
         onLongPress: () => _showActions(context, ref),
         child: Row(
           children: [
-            // 색상 인디케이터
             Container(
               width: 4,
               height: 40,
@@ -36,7 +38,6 @@ class ItemCard extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // 체크박스
             Checkbox(
               value: item.checked,
               onChanged: (v) {
@@ -47,16 +48,12 @@ class ItemCard extends ConsumerWidget {
                 );
               },
             ),
-
-            // 컨텐츠
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: _buildContent(payload, theme),
               ),
             ),
-
-            // 더보기 버튼
             IconButton(
               icon: const Icon(Icons.more_vert, size: 20),
               onPressed: () => _showActions(context, ref),
@@ -138,7 +135,7 @@ class ItemCard extends ConsumerWidget {
 
   void _showActions(BuildContext context, WidgetRef ref) {
     final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+    final coupleId = ref.read(coupleIdProvider);
 
     showModalBottomSheet(
       context: context,
@@ -146,16 +143,14 @@ class ItemCard extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 수정
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: Text(S.isKo ? '수정' : 'Edit'),
               onTap: () {
                 Navigator.pop(context);
-                _showEditForm(context, ref);
+                _showEditForm(context, service, coupleId);
               },
             ),
-            // 체크 토글
             ListTile(
               leading: Icon(item.checked
                   ? Icons.check_box
@@ -173,7 +168,6 @@ class ItemCard extends ConsumerWidget {
               },
             ),
             const Divider(height: 1),
-            // 삭제
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: Text(S.delete,
@@ -189,201 +183,19 @@ class ItemCard extends ConsumerWidget {
     );
   }
 
-  void _showEditForm(BuildContext context, WidgetRef ref) {
-    final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+  void _showEditForm(
+      BuildContext context, FirestoreService service, String coupleId) {
     final payload = Map<String, dynamic>.from(item.payload);
 
     switch (item.type) {
       case ItemType.event:
-        _showEventEdit(context, service, coupleId, payload);
+        showEventEdit(context, service, coupleId, item.id, payload);
       case ItemType.note:
-        _showNoteEdit(context, service, coupleId, payload);
+        showNoteEdit(context, service, coupleId, item.id, payload);
       case ItemType.date:
-        _showDateEdit(context, service, coupleId, payload);
+        showDateEdit(context, service, coupleId, item.id, payload);
       case ItemType.photo:
         break;
     }
-  }
-
-  void _showEventEdit(BuildContext context, FirestoreService service,
-      String coupleId, Map<String, dynamic> payload) {
-    final titleCtrl =
-        TextEditingController(text: payload['title']?.toString() ?? '');
-    final locationCtrl =
-        TextEditingController(text: payload['location']?.toString() ?? '');
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(S.isKo ? '수정' : 'Edit',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(
-                  labelText: S.fieldTitle,
-                  border: const OutlineInputBorder()),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: locationCtrl,
-              decoration: InputDecoration(
-                  labelText: S.fieldLocation,
-                  border: const OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                if (titleCtrl.text.trim().isEmpty) return;
-                payload['title'] = titleCtrl.text.trim();
-                payload['location'] = locationCtrl.text.trim();
-                service.updateItem(
-                    coupleId: coupleId, itemId: item.id, payload: payload);
-                Navigator.pop(ctx);
-              },
-              child: Text(S.change),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNoteEdit(BuildContext context, FirestoreService service,
-      String coupleId, Map<String, dynamic> payload) {
-    final bodyCtrl =
-        TextEditingController(text: payload['body']?.toString() ?? '');
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(S.isKo ? '수정' : 'Edit',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: bodyCtrl,
-              decoration: InputDecoration(
-                  hintText: S.noteHint,
-                  border: const OutlineInputBorder()),
-              maxLines: null,
-              minLines: 6,
-              keyboardType: TextInputType.multiline,
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                if (bodyCtrl.text.trim().isEmpty) return;
-                payload['body'] = bodyCtrl.text.trim();
-                service.updateItem(
-                    coupleId: coupleId, itemId: item.id, payload: payload);
-                Navigator.pop(ctx);
-              },
-              child: Text(S.change),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showDateEdit(BuildContext context, FirestoreService service,
-      String coupleId, Map<String, dynamic> payload) {
-    final titleCtrl =
-        TextEditingController(text: payload['title']?.toString() ?? '');
-    final placeCtrl = TextEditingController(
-        text: (payload['place'] as Map?)?['name']?.toString() ?? '');
-    final reviewCtrl =
-        TextEditingController(text: payload['review']?.toString() ?? '');
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          int rating = (payload['rating'] as int?) ?? 3;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(S.isKo ? '수정' : 'Edit',
-                    style: Theme.of(ctx).textTheme.titleMedium),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                      labelText: S.fieldTitle,
-                      border: const OutlineInputBorder()),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: placeCtrl,
-                  decoration: InputDecoration(
-                      labelText: S.fieldPlace,
-                      border: const OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(S.fieldRating),
-                    ...List.generate(5, (i) => IconButton(
-                      icon: Icon(
-                          i < rating ? Icons.star : Icons.star_border,
-                          color: Colors.amber),
-                      onPressed: () =>
-                          setSheetState(() => rating = i + 1),
-                    )),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reviewCtrl,
-                  decoration: InputDecoration(
-                      hintText: S.fieldReview,
-                      border: const OutlineInputBorder()),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    if (titleCtrl.text.trim().isEmpty) return;
-                    payload['title'] = titleCtrl.text.trim();
-                    payload['place'] = {'name': placeCtrl.text.trim()};
-                    payload['rating'] = rating;
-                    payload['review'] = reviewCtrl.text.trim();
-                    service.updateItem(
-                        coupleId: coupleId,
-                        itemId: item.id,
-                        payload: payload);
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(S.change),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
   }
 }
