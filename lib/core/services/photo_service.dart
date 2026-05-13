@@ -20,6 +20,8 @@ class PhotoItem {
   final DateTime? deletedAt;
   final bool uploading;
   final String date;
+  final int? duration;
+  final bool thumbnailReady;
 
   PhotoItem({
     required this.id,
@@ -34,6 +36,8 @@ class PhotoItem {
     this.deletedAt,
     this.uploading = false,
     required this.date,
+    this.duration,
+    this.thumbnailReady = false,
   });
 
   factory PhotoItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -52,6 +56,8 @@ class PhotoItem {
       deletedAt: (d['deletedAt'] as Timestamp?)?.toDate(),
       uploading: p['uploading'] as bool? ?? false,
       date: d['date'] as String? ?? '',
+      duration: p['duration'] as int?,
+      thumbnailReady: p['thumbnailReady'] as bool? ?? false,
     );
   }
 
@@ -327,9 +333,12 @@ class PhotoService {
   // ─── URL ───
 
   Future<String> thumbnailUrl(PhotoItem photo, {int size = 400}) async {
-    // Resize Images extension 미설치 → 원본 URL 직접 반환
-    // (thumb_400 경로가 항상 404이므로 불필요한 요청 제거)
-    return await _storage.ref(photo.storagePath).getDownloadURL();
+    // Cloud Function이 썸네일을 생성했으면 thumb 경로 사용, 아니면 원본 fallback
+    try {
+      return await _storage.ref(photo.thumbnailPath(size)).getDownloadURL();
+    } catch (_) {
+      return await _storage.ref(photo.storagePath).getDownloadURL();
+    }
   }
 
   Future<String> originalUrl(PhotoItem photo) async {

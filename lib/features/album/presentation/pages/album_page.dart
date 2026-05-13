@@ -486,8 +486,8 @@ class _PhotoThumbState extends State<_PhotoThumb> {
       );
     }
 
-    // 영상은 이미지로 렌더링 불가 → 아이콘 + 배경색으로 대체
-    if (widget.photo.isVideo) {
+    // 영상: 썸네일 준비됐으면 썸네일 표시, 아니면 아이콘
+    if (widget.photo.isVideo && !widget.photo.thumbnailReady) {
       return Container(
         color: Colors.grey.shade800,
         child: const Center(
