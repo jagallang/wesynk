@@ -208,26 +208,29 @@ class FirestoreService {
     required String myEmail,
     required String partnerEmail,
     required String coupleId,
+    required String pairingCode,
   }) async {
     final myKey = myEmail.toLowerCase();
     final partnerKey = partnerEmail.toLowerCase();
+    final codeHash = pairingCode.hashCode.toString();
 
     // 내 등록 저장
     await _db.collection('pairing').doc(myKey).set({
       'myEmail': myKey,
       'partnerEmail': partnerKey,
       'coupleId': coupleId,
+      'pairingCode': codeHash,
       'createdAt': Timestamp.fromDate(DateTime.now()),
     });
     debugPrint('[FirestoreService] pairing registered: $myKey → $partnerKey');
 
     // 상대방 등록 확인 → 양방향 매칭 체크
-    return _checkMutualMatch(myKey, partnerKey, coupleId);
+    return _checkMutualMatch(myKey, partnerKey, coupleId, codeHash);
   }
 
-  /// 양방향 매칭 확인
+  /// 양방향 매칭 확인 (이메일 + 코드)
   Future<String?> _checkMutualMatch(
-      String myEmail, String partnerEmail, String myCoupleId) async {
+      String myEmail, String partnerEmail, String myCoupleId, String myCodeHash) async {
     final partnerDoc =
         await _db.collection('pairing').doc(partnerEmail).get();
 
@@ -239,10 +242,17 @@ class FirestoreService {
     final partnerData = partnerDoc.data()!;
     final theirPartner = partnerData['partnerEmail'] as String?;
     final theirCoupleId = partnerData['coupleId'] as String?;
+    final theirCodeHash = partnerData['pairingCode'] as String?;
 
     // 상대방이 나를 파트너로 등록했는지 확인
     if (theirPartner != myEmail) {
       debugPrint('[FirestoreService] partner email mismatch: $theirPartner != $myEmail');
+      return null;
+    }
+
+    // 페어링 코드 일치 확인
+    if (theirCodeHash != myCodeHash) {
+      debugPrint('[FirestoreService] pairing code mismatch');
       return null;
     }
 

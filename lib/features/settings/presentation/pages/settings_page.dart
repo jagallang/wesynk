@@ -539,13 +539,16 @@ class _PartnerCard extends ConsumerStatefulWidget {
 class _PartnerCardState extends ConsumerState<_PartnerCard> {
   final _myEmailCtrl = TextEditingController();
   final _partnerEmailCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
   bool _loading = false;
   bool _registered = false;
+  String? _codeError;
 
   @override
   void dispose() {
     _myEmailCtrl.dispose();
     _partnerEmailCtrl.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
@@ -622,6 +625,21 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                 ),
                 onChanged: (_) => setState(() {}),
               ),
+              const SizedBox(height: 12),
+
+              // 페어링 코드
+              TextField(
+                controller: _codeCtrl,
+                decoration: InputDecoration(
+                  labelText: S.isKo ? '페어링 코드' : 'Pairing Code',
+                  hintText: S.isKo ? '파트너와 약속한 코드' : 'Shared secret code',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  isDense: true,
+                  errorText: _codeError,
+                ),
+                onChanged: (_) => setState(() => _codeError = null),
+              ),
               const SizedBox(height: 16),
 
               // 페어링 등록 버튼
@@ -630,7 +648,8 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                 child: FilledButton.icon(
                   onPressed: _loading ||
                           !_isValidEmail(_myEmailCtrl.text.trim()) ||
-                          !_isValidEmail(_partnerEmailCtrl.text.trim())
+                          !_isValidEmail(_partnerEmailCtrl.text.trim()) ||
+                          _codeCtrl.text.trim().isEmpty
                       ? null
                       : _register,
                   icon: _loading
@@ -667,10 +686,17 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
     try {
       final coupleId = ref.read(coupleIdProvider);
       final service = ref.read(firestoreServiceProvider);
+      final code = _codeCtrl.text.trim();
+      if (code.isEmpty) {
+        setState(() => _codeError = S.isKo ? '코드를 입력하세요' : 'Enter a code');
+        return;
+      }
+
       final matchedId = await service.registerForPairing(
         myEmail: _myEmailCtrl.text.trim(),
         partnerEmail: _partnerEmailCtrl.text.trim(),
         coupleId: coupleId,
+        pairingCode: code,
       );
 
       setState(() => _registered = true);
@@ -679,6 +705,14 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
         ref.read(coupleIdProvider.notifier).state = matchedId;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(S.pairingSuccess)),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(S.isKo
+                ? '파트너의 등록을 기다리는 중...'
+                : 'Waiting for partner...'),
+          ),
         );
       }
     } finally {
