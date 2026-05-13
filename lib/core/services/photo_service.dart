@@ -337,13 +337,21 @@ class PhotoService {
     try {
       return await _storage.ref(photo.thumbnailPath(size)).getDownloadURL();
     } catch (_) {
-      return await _storage.ref(photo.storagePath).getDownloadURL();
+      try {
+        return await _storage.ref(photo.storagePath).getDownloadURL();
+      } catch (_) {
+        return '';
+      }
     }
   }
 
   Future<String> originalUrl(PhotoItem photo) async {
     if (photo.storagePath.isEmpty) return '';
-    return await _storage.ref(photo.storagePath).getDownloadURL();
+    try {
+      return await _storage.ref(photo.storagePath).getDownloadURL();
+    } catch (_) {
+      return '';
+    }
   }
 
   // ─── 삭제 ───

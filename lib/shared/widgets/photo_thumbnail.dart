@@ -67,8 +67,13 @@ class _PhotoThumbnailState extends State<PhotoThumbnail> {
     return FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snap) {
-        if (!snap.hasData) {
-          return Container(color: Colors.grey.shade200);
+        if (snap.hasError || !snap.hasData || snap.data!.isEmpty) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: snap.hasError
+                ? const Icon(Icons.broken_image, color: Colors.grey)
+                : null,
+          );
         }
         return CachedNetworkImage(
           imageUrl: snap.data!,
