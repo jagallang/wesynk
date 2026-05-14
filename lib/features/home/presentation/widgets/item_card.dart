@@ -139,49 +139,31 @@ class ItemCard extends ConsumerWidget {
       Map<String, dynamic> payload, ThemeData theme, Color eventColor) {
     final body = payload['body']?.toString() ?? '';
     final mood = payload['mood']?.toString() ?? '📝';
+    final tag = payload['tag']?.toString() ?? '';
+    final tagName = payload['tagName']?.toString() ?? '';
+    final title = payload['title']?.toString() ?? '';
+
+    // 기존 일기 (tag/title 없는) 하위 호환: 본문 첫 줄을 제목으로
+    final displayTitle = title.isNotEmpty
+        ? title
+        : body.split('\n').first;
+    final tagLabel = tag.isNotEmpty ? '$tag $tagName' : '';
 
     return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onLongPress: () => _showActions(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(mood, style: const TextStyle(fontSize: 22)),
-                  const SizedBox(width: 8),
-                  Text(
-                    item.date,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: eventColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _showActions(context, ref),
-                    child: Icon(Icons.more_horiz,
-                        size: 18, color: Colors.grey.shade400),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                body,
-                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
-              ),
-            ],
-          ),
-        ),
+      child: StatefulBuilder(
+        builder: (context, setCardState) {
+          // _expanded 상태를 클로저로 관리
+          return _NoteExpandableCard(
+            item: item,
+            displayTitle: displayTitle,
+            tagLabel: tagLabel,
+            mood: mood,
+            body: body,
+            eventColor: eventColor,
+            theme: theme,
+            onLongPress: () => _showActions(context, ref),
+          );
+        },
       ),
     );
   }
@@ -308,46 +290,88 @@ class ItemCard extends ConsumerWidget {
     );
   }
 
+  static const _noteTags = [
+    ('📚', '독서', 'Reading'),
+    ('🎵', '음악', 'Music'),
+    ('💡', '관심사', 'Interests'),
+    ('🎬', '영화', 'Movies'),
+    ('✈️', '여행', 'Travel'),
+    ('💭', '일상', 'Daily'),
+  ];
+
   void _showNoteEdit(BuildContext context, FirestoreService service,
       String coupleId, Map<String, dynamic> payload) {
+    final titleCtrl =
+        TextEditingController(text: payload['title']?.toString() ?? '');
     final bodyCtrl =
         TextEditingController(text: payload['body']?.toString() ?? '');
+    final currentTag = payload['tag']?.toString() ?? '';
+    int selectedTag = _noteTags.indexWhere((t) => t.$1 == currentTag);
+    if (selectedTag < 0) selectedTag = 5;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(S.isKo ? '수정' : 'Edit',
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: bodyCtrl,
-              decoration: InputDecoration(
-                  hintText: S.noteHint,
-                  border: const OutlineInputBorder()),
-              maxLines: null,
-              minLines: 6,
-              keyboardType: TextInputType.multiline,
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                if (bodyCtrl.text.trim().isEmpty) return;
-                payload['body'] = bodyCtrl.text.trim();
-                service.updateItem(
-                    coupleId: coupleId, itemId: item.id, payload: payload);
-                Navigator.pop(ctx);
-              },
-              child: Text(S.change),
-            ),
-          ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(S.isKo ? '수정' : 'Edit',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: List.generate(_noteTags.length, (i) {
+                  final (emoji, ko, en) = _noteTags[i];
+                  return ChoiceChip(
+                    label: Text('$emoji ${S.isKo ? ko : en}',
+                        style: const TextStyle(fontSize: 13)),
+                    selected: i == selectedTag,
+                    onSelected: (_) =>
+                        setSheetState(() => selectedTag = i),
+                  );
+                }),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleCtrl,
+                decoration: InputDecoration(
+                    labelText: S.isKo ? '제목' : 'Title',
+                    border: const OutlineInputBorder()),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bodyCtrl,
+                decoration: InputDecoration(
+                    hintText: S.noteHint,
+                    border: const OutlineInputBorder()),
+                maxLines: null,
+                minLines: 4,
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  if (titleCtrl.text.trim().isEmpty) return;
+                  final (tagEmoji, tagKo, tagEn) = _noteTags[selectedTag];
+                  payload['title'] = titleCtrl.text.trim();
+                  payload['body'] = bodyCtrl.text.trim();
+                  payload['tag'] = tagEmoji;
+                  payload['tagName'] = S.isKo ? tagKo : tagEn;
+                  service.updateItem(
+                      coupleId: coupleId, itemId: item.id, payload: payload);
+                  Navigator.pop(ctx);
+                },
+                child: Text(S.change),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -433,6 +457,123 @@ class ItemCard extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// 일기 카드 — 탭하면 펼침/접힘
+class _NoteExpandableCard extends StatefulWidget {
+  final Item item;
+  final String displayTitle;
+  final String tagLabel;
+  final String mood;
+  final String body;
+  final Color eventColor;
+  final ThemeData theme;
+  final VoidCallback onLongPress;
+
+  const _NoteExpandableCard({
+    required this.item,
+    required this.displayTitle,
+    required this.tagLabel,
+    required this.mood,
+    required this.body,
+    required this.eventColor,
+    required this.theme,
+    required this.onLongPress,
+  });
+
+  @override
+  State<_NoteExpandableCard> createState() => _NoteExpandableCardState();
+}
+
+class _NoteExpandableCardState extends State<_NoteExpandableCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _expanded = !_expanded),
+      onLongPress: widget.onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 헤더: 태그 + 제목 + 감정 + 날짜
+            Row(
+              children: [
+                if (widget.tagLabel.isNotEmpty) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: widget.theme.colorScheme.primary
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(widget.tagLabel,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: widget.theme.colorScheme.primary)),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    widget.displayTitle,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(widget.mood, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 6),
+                Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+
+            // 날짜 + 작성자 색상
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: widget.eventColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(widget.item.date,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+
+            // 펼침: 본문
+            if (_expanded && widget.body.isNotEmpty) ...[
+              const Divider(height: 20),
+              Text(
+                widget.body,
+                style:
+                    widget.theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

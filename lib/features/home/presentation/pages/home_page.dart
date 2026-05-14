@@ -234,9 +234,20 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
+  static const _noteTags = [
+    ('📚', '독서', 'Reading'),
+    ('🎵', '음악', 'Music'),
+    ('💡', '관심사', 'Interests'),
+    ('🎬', '영화', 'Movies'),
+    ('✈️', '여행', 'Travel'),
+    ('💭', '일상', 'Daily'),
+  ];
+
   void _showNoteForm(String dateKey) {
+    final titleCtrl = TextEditingController();
     final bodyCtrl = TextEditingController();
     String selectedMood = '😊';
+    int selectedTag = 5; // 기본: 💭 일상
     final moods = ['😊', '😍', '😢', '😡', '🥺', '🎬', '📝', '🌸'];
 
     showModalBottomSheet(
@@ -251,7 +262,26 @@ class _HomePageState extends ConsumerState<HomePage>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(S.noteAdd, style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // 태그 선택
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: List.generate(_noteTags.length, (i) {
+                  final (emoji, ko, en) = _noteTags[i];
+                  final selected = i == selectedTag;
+                  return ChoiceChip(
+                    label: Text('$emoji ${S.isKo ? ko : en}',
+                        style: const TextStyle(fontSize: 13)),
+                    selected: selected,
+                    onSelected: (_) => setSheetState(() => selectedTag = i),
+                  );
+                }),
+              ),
+              const SizedBox(height: 12),
+
+              // 감정 이모지
               Wrap(
                 spacing: 8,
                 children: moods
@@ -272,6 +302,19 @@ class _HomePageState extends ConsumerState<HomePage>
                     .toList(),
               ),
               const SizedBox(height: 12),
+
+              // 제목
+              TextField(
+                controller: titleCtrl,
+                decoration: InputDecoration(
+                  labelText: S.isKo ? '제목' : 'Title',
+                  border: const OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+
+              // 본문
               TextField(
                 controller: bodyCtrl,
                 decoration: InputDecoration(
@@ -279,14 +322,14 @@ class _HomePageState extends ConsumerState<HomePage>
                   border: const OutlineInputBorder(),
                 ),
                 maxLines: null,
-                minLines: 6,
+                minLines: 4,
                 keyboardType: TextInputType.multiline,
-                autofocus: true,
               ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () {
-                  if (bodyCtrl.text.trim().isEmpty) return;
+                  if (titleCtrl.text.trim().isEmpty) return;
+                  final (tagEmoji, tagKo, tagEn) = _noteTags[selectedTag];
                   _addItem(Item(
                     id: const Uuid().v4(),
                     type: ItemType.note,
@@ -294,8 +337,11 @@ class _HomePageState extends ConsumerState<HomePage>
                     createdBy: 'me',
                     createdAt: DateTime.now(),
                     payload: {
+                      'title': titleCtrl.text.trim(),
                       'body': bodyCtrl.text.trim(),
                       'mood': selectedMood,
+                      'tag': tagEmoji,
+                      'tagName': S.isKo ? tagKo : tagEn,
                     },
                   ));
                   Navigator.pop(ctx);
