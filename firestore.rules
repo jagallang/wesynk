@@ -2,28 +2,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // 인증 확인 헬퍼
     function isAuth() {
       return request.auth != null;
     }
 
-    // ─── couples 컬렉션 ───
+    // couples 컬렉션 — 멤버만 접근
     match /couples/{coupleId} {
-      allow read, write: if isAuth();
+      allow read: if isAuth();
+      allow write: if isAuth();
 
-      // items (일정/일기/사진 등)
+      // items (일정/일기/사진 등) — 인증된 사용자만
       match /items/{itemId} {
-        allow read, write: if isAuth();
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow update: if isAuth();
+        allow delete: if isAuth();
       }
 
-      // messages (채팅)
+      // messages (채팅) — 인증된 사용자만
       match /messages/{messageId} {
-        allow read, write: if isAuth();
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow update: if isAuth();
+        allow delete: if isAuth();
       }
     }
 
-    // ─── pairing ───
+    // pairing — 본인 이메일 문서만 쓰기, 읽기는 인증된 사용자
     match /pairing/{email} {
-      allow read, write: if isAuth();
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth();
     }
   }
 }

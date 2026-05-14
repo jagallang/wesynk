@@ -1,12 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/google_calendar_service.dart';
+import '../../../../core/services/photo_service.dart';
 import '../../../../shared/models/item_model.dart';
 import '../../../../shared/widgets/empty_state.dart';
-import '../../../../shared/widgets/photo_detail_dialog.dart';
-import '../../../../shared/widgets/photo_thumbnail.dart';
 import '../providers/home_providers.dart';
 import '../providers/photo_providers.dart';
 import 'item_card.dart';
@@ -166,12 +166,109 @@ class _PhotoTabContent extends ConsumerWidget {
           itemBuilder: (context, i) {
             final photo = photos[i];
             return GestureDetector(
-              onTap: () =>
-                  showPhotoDetailDialog(context, photoService, photo),
-              child: PhotoThumbnail(
+              onTap: () => _showDetail(context, photoService, photo),
+              child: _StorageThumb(
                   photo: photo, photoService: photoService),
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showDetail(
+      BuildContext context, PhotoService service, PhotoItem photo) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FutureBuilder<String>(
+              future: service.originalUrl(photo),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const SizedBox(
+                      height: 300,
+                      child: Center(child: CircularProgressIndicator()));
+                }
+                return CachedNetworkImage(
+                  imageUrl: snap.data!,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const SizedBox(
+                      height: 300,
+                      child: Center(child: CircularProgressIndicator())),
+                  errorWidget: (_, __, ___) => const SizedBox(
+                      height: 200, child: Icon(Icons.broken_image)),
+                );
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(photo.date,
+                  style:
+                      const TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StorageThumb extends StatefulWidget {
+  final PhotoItem photo;
+  final PhotoService photoService;
+
+  const _StorageThumb({required this.photo, required this.photoService});
+
+  @override
+  State<_StorageThumb> createState() => _StorageThumbState();
+}
+
+class _StorageThumbState extends State<_StorageThumb> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+  }
+
+  @override
+  void didUpdateWidget(_StorageThumb old) {
+    super.didUpdateWidget(old);
+    if (old.photo.id != widget.photo.id) {
+      _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.photo.uploading) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return Container(color: Colors.grey.shade200);
+        }
+        return CachedNetworkImage(
+          imageUrl: snap.data!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: Colors.grey.shade200),
+          errorWidget: (_, __, ___) => Container(
+              color: Colors.grey.shade200,
+              child: const Icon(Icons.broken_image)),
         );
       },
     );

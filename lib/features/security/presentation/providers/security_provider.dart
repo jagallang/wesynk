@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/preferences_service.dart';
 
 enum AutoLockDuration {
   off(0, '끄기', 'Off'),
@@ -13,13 +12,6 @@ enum AutoLockDuration {
   final String labelKo;
   final String labelEn;
   const AutoLockDuration(this.seconds, this.labelKo, this.labelEn);
-
-  static AutoLockDuration fromName(String name) {
-    return AutoLockDuration.values.firstWhere(
-      (e) => e.name == name,
-      orElse: () => AutoLockDuration.off,
-    );
-  }
 }
 
 class SecuritySettings {
@@ -54,45 +46,8 @@ class SecuritySettings {
   }
 }
 
-/// 보안 설정 (영구 저장 연동)
-class SecurityNotifier extends StateNotifier<SecuritySettings> {
-  SecurityNotifier() : super(const SecuritySettings()) {
-    _loadFromPrefs();
-  }
-
-  Future<void> _loadFromPrefs() async {
-    final prefs = PreferencesService();
-    final pin = await prefs.getPin();
-    state = SecuritySettings(
-      pinEnabled: prefs.pinEnabled,
-      pin: pin,
-      lockOnTabSwitch: prefs.lockOnTabSwitch,
-      autoLockDuration: AutoLockDuration.fromName(prefs.autoLockDuration),
-    );
-  }
-
-  Future<void> update(SecuritySettings settings) async {
-    state = settings;
-    final prefs = PreferencesService();
-    await prefs.setPinEnabled(settings.pinEnabled);
-    await prefs.setLockOnTabSwitch(settings.lockOnTabSwitch);
-    await prefs.setAutoLockDuration(settings.autoLockDuration.name);
-    await prefs.setPin(settings.pin);
-  }
-
-  Future<void> reset() async {
-    state = const SecuritySettings();
-    final prefs = PreferencesService();
-    await prefs.setPinEnabled(false);
-    await prefs.setLockOnTabSwitch(false);
-    await prefs.setAutoLockDuration('off');
-    await prefs.setPin(null);
-  }
-}
-
-final securityProvider =
-    StateNotifierProvider<SecurityNotifier, SecuritySettings>(
-  (ref) => SecurityNotifier(),
+final securityProvider = StateProvider<SecuritySettings>(
+  (ref) => const SecuritySettings(),
 );
 
 /// 앱 잠금 해제 여부

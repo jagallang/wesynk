@@ -91,8 +91,8 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       });
     } else {
       if (_input == _firstPin) {
-        ref.read(securityProvider.notifier).update(
-            ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input));
+        ref.read(securityProvider.notifier).state =
+            ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input);
         widget.onSuccess?.call();
         if (mounted) Navigator.of(context).pop(true);
       } else {

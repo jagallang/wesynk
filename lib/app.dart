@@ -1,10 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wesync_chat/wesync_chat.dart' show CS;
 import 'core/constants/app_strings.dart';
-import 'core/services/preferences_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -52,46 +50,6 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  bool _initialized = false;
-
-  void _ensureCoupleId() {
-    if (_initialized) return;
-    _initialized = true;
-
-    // 즉시 동기적으로 coupleId 설정 (uid 기반)
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'temp';
-    final cached = PreferencesService().coupleId;
-    final coupleId = cached.isNotEmpty ? cached : 'couple-$uid';
-
-    if (ref.read(coupleIdProvider).isEmpty) {
-      ref.read(coupleIdProvider.notifier).state = coupleId;
-    }
-
-    // 비동기로 Firestore에서 최신 coupleId 조회 (백그라운드)
-    _initCoupleDataAsync(uid);
-  }
-
-  Future<void> _initCoupleDataAsync(String uid) async {
-    try {
-      final service = ref.read(firestoreServiceProvider);
-      final matched = await service.lookupCoupleId();
-      final prefs = PreferencesService();
-
-      if (matched != null && matched.isNotEmpty) {
-        ref.read(coupleIdProvider.notifier).state = matched;
-        await prefs.setCoupleId(matched);
-        await service.ensureCoupleExists(matched);
-      } else {
-        final tempCoupleId = 'couple-$uid';
-        await service.ensureCoupleExists(tempCoupleId);
-        ref.read(coupleIdProvider.notifier).state = tempCoupleId;
-        await prefs.setCoupleId(tempCoupleId);
-      }
-    } catch (e) {
-      debugPrint('[AuthGate] _initCoupleDataAsync error: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final security = ref.watch(securityProvider);
@@ -110,11 +68,8 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         body: Center(child: Text('${S.error}: $e')),
       ),
       data: (user) {
-        if (user == null) {
-          _initialized = false;
-          return const LoginPage();
-        }
-        _ensureCoupleId();
+        debugPrint('[AuthGate] user=${user?.email ?? 'null'}');
+        if (user == null) return const LoginPage();
         return const HomePage();
       },
     );

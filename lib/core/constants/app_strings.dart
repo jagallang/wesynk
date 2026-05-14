@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/preferences_service.dart';
 
 enum AppLanguage {
   ko('한국어'),
@@ -9,13 +8,7 @@ enum AppLanguage {
   const AppLanguage(this.label);
 }
 
-final appLanguageProvider = StateProvider<AppLanguage>((ref) {
-  final saved = PreferencesService().language;
-  return AppLanguage.values.firstWhere(
-    (e) => e.name == saved,
-    orElse: () => AppLanguage.ko,
-  );
-});
+final appLanguageProvider = StateProvider<AppLanguage>((ref) => AppLanguage.ko);
 
 class S {
   S._();
