@@ -20,13 +20,17 @@ class ItemCard extends ConsumerWidget {
         ? ref.watch(myEventColorProvider)
         : ref.watch(partnerEventColorProvider);
 
+    // 일기(note)는 일기장 스타일 카드
+    if (item.type == ItemType.note) {
+      return _buildNoteCard(context, ref, payload, theme, eventColor);
+    }
+
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onLongPress: () => _showActions(context, ref),
         child: Row(
           children: [
-            // 색상 인디케이터
             Container(
               width: 4,
               height: 40,
@@ -36,7 +40,6 @@ class ItemCard extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // 체크박스
             Checkbox(
               value: item.checked,
               onChanged: (v) {
@@ -47,16 +50,12 @@ class ItemCard extends ConsumerWidget {
                 );
               },
             ),
-
-            // 컨텐츠
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: _buildContent(payload, theme),
               ),
             ),
-
-            // 더보기 버튼
             IconButton(
               icon: const Icon(Icons.more_vert, size: 20),
               onPressed: () => _showActions(context, ref),
@@ -134,6 +133,57 @@ class ItemCard extends ConsumerWidget {
           ],
         ),
     };
+  }
+
+  Widget _buildNoteCard(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> payload, ThemeData theme, Color eventColor) {
+    final body = payload['body']?.toString() ?? '';
+    final mood = payload['mood']?.toString() ?? '📝';
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onLongPress: () => _showActions(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(mood, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(width: 8),
+                  Text(
+                    item.date,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: eventColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _showActions(context, ref),
+                    child: Icon(Icons.more_horiz,
+                        size: 18, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                body,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showActions(BuildContext context, WidgetRef ref) {
