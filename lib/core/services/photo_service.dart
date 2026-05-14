@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 // ─── PhotoItem 모델 ───
@@ -194,6 +195,28 @@ class PhotoService {
   Future<List<PhotoItem>> pickAndUpload({
     void Function(int done, int total)? onProgress,
   }) async {
+    final pickedFiles = kIsWeb
+        ? await _pickFilesWeb()
+        : await _pickFilesMobile();
+    if (pickedFiles.isEmpty) return [];
+
+    final results = <PhotoItem>[];
+    for (int i = 0; i < pickedFiles.length; i++) {
+      final (bytes, name) = pickedFiles[i];
+      try {
+        if (bytes.isEmpty) continue;
+        final item = await _uploadOne(bytes, name);
+        results.add(item);
+        onProgress?.call(i + 1, pickedFiles.length);
+      } catch (e) {
+        debugPrint('[PhotoService] upload failed: $e');
+      }
+    }
+    return results;
+  }
+
+  /// 웹: file_selector 사용
+  Future<List<(Uint8List, String)>> _pickFilesWeb() async {
     const mediaTypeGroup = XTypeGroup(
       label: 'images & videos',
       extensions: [
@@ -206,24 +229,24 @@ class PhotoService {
         'video/x-matroska', 'video/webm',
       ],
     );
-
     final files = await openFiles(acceptedTypeGroups: [mediaTypeGroup]);
-    if (files.isEmpty) return [];
-
-    final results = <PhotoItem>[];
-    for (int i = 0; i < files.length; i++) {
-      final file = files[i];
-      try {
-        final bytes = await file.readAsBytes();
-        if (bytes.isEmpty) continue;
-        final item = await _uploadOne(bytes, file.name);
-        results.add(item);
-        onProgress?.call(i + 1, files.length);
-      } catch (e) {
-        debugPrint('[PhotoService] upload failed: $e');
-      }
+    final result = <(Uint8List, String)>[];
+    for (final f in files) {
+      result.add((await f.readAsBytes(), f.name));
     }
-    return results;
+    return result;
+  }
+
+  /// 모바일: image_picker 사용 (갤러리에서 여러 장 선택)
+  Future<List<(Uint8List, String)>> _pickFilesMobile() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickMultiImage(imageQuality: 90);
+    final result = <(Uint8List, String)>[];
+    for (final xFile in picked) {
+      final bytes = await xFile.readAsBytes();
+      result.add((bytes, xFile.name));
+    }
+    return result;
   }
 
   Future<PhotoItem> _uploadOne(Uint8List bytes, String fileName) async {
