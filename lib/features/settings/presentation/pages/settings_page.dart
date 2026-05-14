@@ -344,7 +344,7 @@ class SettingsPage extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(S.appInfo),
-                  trailing: const Text('v1.3.0'),
+                  trailing: const Text('v2.7.0'),
                   onTap: () {},
                 ),
                 const Divider(height: 1),
