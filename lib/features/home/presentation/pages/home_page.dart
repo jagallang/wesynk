@@ -28,11 +28,13 @@ class _HomePageState extends ConsumerState<HomePage>
   late final TabController _tabController;
   int _navIndex = 0;
   DateTime _lastActivity = DateTime.now();
+  DateTime? _chatClearBefore;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: tabOrder.length, vsync: this);
+    _loadChatClearedAt();
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -86,6 +88,21 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  Future<void> _loadChatClearedAt() async {
+    final service = ref.read(firestoreServiceProvider);
+    final cleared = await service.getChatClearedAt(
+        FirestoreService.defaultCoupleId);
+    if (cleared != null && mounted) {
+      setState(() => _chatClearBefore = cleared);
+    }
+  }
+
+  void _onChatCleared(DateTime clearedAt) {
+    setState(() => _chatClearBefore = clearedAt);
+    ref.read(firestoreServiceProvider).saveChatClearedAt(
+        FirestoreService.defaultCoupleId, clearedAt);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,6 +117,8 @@ class _HomePageState extends ConsumerState<HomePage>
             onOpenAppSettings: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsPage()),
             ),
+            initialClearBefore: _chatClearBefore,
+            onClearChat: _onChatCleared,
           ),
           const AlbumPage(),
         ],

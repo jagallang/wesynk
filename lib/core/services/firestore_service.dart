@@ -99,6 +99,26 @@ class FirestoreService {
     });
   }
 
+  // ─── 채팅 지우기 타임스탬프 ───
+
+  /// 채팅 지우기 시점 저장 (사용자별)
+  Future<void> saveChatClearedAt(String coupleId, DateTime clearedAt) async {
+    await _db.collection('couples').doc(coupleId).set({
+      'chatClearedAt_me': Timestamp.fromDate(clearedAt),
+    }, SetOptions(merge: true));
+  }
+
+  /// 채팅 지우기 시점 조회
+  Future<DateTime?> getChatClearedAt(String coupleId) async {
+    try {
+      final doc = await _db.collection('couples').doc(coupleId).get();
+      final ts = doc.data()?['chatClearedAt_me'] as Timestamp?;
+      return ts?.toDate();
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// couples 문서 초기화 (최초 1회)
   Future<void> ensureCoupleExists(String coupleId) async {
     final doc = _db.collection('couples').doc(coupleId);

@@ -14,6 +14,8 @@ class ChatScreen extends StatefulWidget {
   final String myUid;
   final Future<String?> Function()? onPickPhoto;
   final VoidCallback? onOpenAppSettings;
+  final DateTime? initialClearBefore;
+  final ValueChanged<DateTime>? onClearChat;
 
   const ChatScreen({
     super.key,
@@ -21,6 +23,8 @@ class ChatScreen extends StatefulWidget {
     required this.myUid,
     this.onPickPhoto,
     this.onOpenAppSettings,
+    this.initialClearBefore,
+    this.onClearChat,
   });
 
   @override
@@ -36,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _clearBefore = widget.initialClearBefore;
     _service = ChatService(
       coupleId: widget.coupleId,
       myUid: widget.myUid,
@@ -179,7 +184,9 @@ class _ChatScreenState extends State<ChatScreen> {
               await _service.send(body, lifetime: lifetime, imageUrl: imageUrl);
             },
             onClear: () {
-              setState(() => _clearBefore = DateTime.now());
+              final now = DateTime.now();
+              setState(() => _clearBefore = now);
+              widget.onClearChat?.call(now);
             },
             onPickPhoto: widget.onPickPhoto == null
                 ? null
