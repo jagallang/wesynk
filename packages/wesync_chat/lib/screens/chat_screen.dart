@@ -13,12 +13,14 @@ class ChatScreen extends StatefulWidget {
   final String coupleId;
   final String myUid;
   final Future<String?> Function()? onPickPhoto;
+  final VoidCallback? onOpenAppSettings;
 
   const ChatScreen({
     super.key,
     required this.coupleId,
     required this.myUid,
     this.onPickPhoto,
+    this.onOpenAppSettings,
   });
 
   @override
@@ -103,9 +105,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined),
+                    icon: const Icon(Icons.tune_outlined),
                     onPressed: _openSettings,
                   ),
+                  if (widget.onOpenAppSettings != null)
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      onPressed: widget.onOpenAppSettings,
+                    ),
                 ],
               ),
             ),

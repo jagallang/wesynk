@@ -7,6 +7,7 @@ import 'package:web/web.dart' as web;
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
 
 class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({super.key});
@@ -157,6 +158,13 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                   IconButton(
                     icon: const Icon(Icons.add_photo_alternate_outlined),
                     onPressed: _uploadPhotos,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsPage()),
+                    ),
                   ),
                 ],
               ],

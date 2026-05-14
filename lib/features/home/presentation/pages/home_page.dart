@@ -97,9 +97,11 @@ class _HomePageState extends ConsumerState<HomePage>
             coupleId: 'default-couple',
             myUid: 'me',
             onPickPhoto: () => _pickPhotoForChat(),
+            onOpenAppSettings: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
           ),
           const AlbumPage(),
-          const SettingsPage(),
         ],
       ),
       floatingActionButton: _navIndex == 0
@@ -124,8 +126,6 @@ class _HomePageState extends ConsumerState<HomePage>
               icon: const Icon(Icons.chat_bubble_outline), label: S.navChat),
           NavigationDestination(
               icon: const Icon(Icons.photo_library), label: S.navAlbum),
-          NavigationDestination(
-              icon: const Icon(Icons.settings), label: S.navSettings),
         ],
         onDestinationSelected: _onTabSelected,
       ),
@@ -451,8 +451,11 @@ class _CalendarView extends ConsumerWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {},
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsPage()),
+                    ),
                   ),
                 ],
               );
