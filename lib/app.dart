@@ -50,6 +50,69 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
+  bool _settingsLoaded = false;
+
+  Future<void> _loadSavedSettings() async {
+    if (_settingsLoaded) return;
+    _settingsLoaded = true;
+
+    try {
+      final service = ref.read(firestoreServiceProvider);
+      final coupleId = ref.read(coupleIdProvider);
+      final s = await service.loadSettings(coupleId);
+      if (s == null) return;
+
+      // 언어
+      if (s['language'] != null) {
+        final lang = AppLanguage.values.firstWhere(
+          (l) => l.name == s['language'],
+          orElse: () => AppLanguage.ko,
+        );
+        ref.read(appLanguageProvider.notifier).state = lang;
+      }
+
+      // 앱 커스터마이즈
+      final iconCode = s['appIcon'] as int?;
+      final matchedIcon = iconCode != null
+          ? presetIcons
+              .where((p) => p.icon.codePoint == iconCode)
+              .firstOrNull
+              ?.icon
+          : null;
+
+      ref.read(appCustomizationProvider.notifier).state = AppCustomization(
+        appName: s['appName'] as String? ?? 'WeSync',
+        themeColor: s['themeColor'] != null
+            ? Color(s['themeColor'] as int)
+            : const Color(0xFFE8757D),
+        appIcon: matchedIcon ?? Icons.favorite,
+        backgroundColor: s['bgColor'] != null
+            ? Color(s['bgColor'] as int)
+            : const Color(0xFFFFFBF8),
+      );
+
+      // 일정 색상
+      if (s['myEventColor'] != null) {
+        ref.read(myEventColorProvider.notifier).state =
+            Color(s['myEventColor'] as int);
+      }
+      if (s['partnerEventColor'] != null) {
+        ref.read(partnerEventColorProvider.notifier).state =
+            Color(s['partnerEventColor'] as int);
+      }
+      if (s['googleEventColor'] != null) {
+        ref.read(googleEventColorProvider.notifier).state =
+            Color(s['googleEventColor'] as int);
+      }
+      if (s['googleCalEnabled'] != null) {
+        ref.read(googleCalendarEnabledProvider.notifier).state =
+            s['googleCalEnabled'] as bool;
+      }
+    } catch (e) {
+      debugPrint('[AuthGate] loadSettings error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final security = ref.watch(securityProvider);
@@ -69,7 +132,11 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
       ),
       data: (user) {
         debugPrint('[AuthGate] user=${user?.email ?? 'null'}');
-        if (user == null) return const LoginPage();
+        if (user == null) {
+          _settingsLoaded = false;
+          return const LoginPage();
+        }
+        _loadSavedSettings();
         return const HomePage();
       },
     );

@@ -99,6 +99,29 @@ class FirestoreService {
     });
   }
 
+  // ─── 앱 설정 저장/로드 ───
+
+  /// 설정을 Firestore에 저장
+  Future<void> saveSettings({
+    required String coupleId,
+    required Map<String, dynamic> settings,
+  }) async {
+    await _db.collection('couples').doc(coupleId).set(
+      {'settings': settings},
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Firestore에서 설정 로드
+  Future<Map<String, dynamic>?> loadSettings(String coupleId) async {
+    try {
+      final doc = await _db.collection('couples').doc(coupleId).get();
+      return doc.data()?['settings'] as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── 채팅 지우기 타임스탬프 ───
 
   /// 채팅 지우기 시점 저장 (사용자별)

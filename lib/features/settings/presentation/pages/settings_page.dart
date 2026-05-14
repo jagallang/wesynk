@@ -7,25 +7,76 @@ import '../../../home/presentation/providers/home_providers.dart';
 import '../../../security/presentation/pages/pin_screen.dart';
 import '../../../security/presentation/providers/security_provider.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  bool _saving = false;
+
+  Future<void> _saveSettings() async {
+    setState(() => _saving = true);
+    try {
+      final customization = ref.read(appCustomizationProvider);
+      final lang = ref.read(appLanguageProvider);
+      final myColor = ref.read(myEventColorProvider);
+      final partnerColor = ref.read(partnerEventColorProvider);
+      final googleColor = ref.read(googleEventColorProvider);
+      final googleCal = ref.read(googleCalendarEnabledProvider);
+      final coupleId = ref.read(coupleIdProvider);
+      final service = ref.read(firestoreServiceProvider);
+
+      await service.saveSettings(
+        coupleId: coupleId,
+        settings: {
+          'appName': customization.appName,
+          'themeColor': customization.themeColor.toARGB32(),
+          'appIcon': customization.appIcon.codePoint,
+          'bgColor': customization.backgroundColor.toARGB32(),
+          'language': lang.name,
+          'myEventColor': myColor.toARGB32(),
+          'partnerEventColor': partnerColor.toARGB32(),
+          'googleEventColor': googleColor.toARGB32(),
+          'googleCalEnabled': googleCal,
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(S.isKo ? '설정이 저장되었습니다' : 'Settings saved')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${S.error}: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final customization = ref.watch(appCustomizationProvider);
     final user = FirebaseAuth.instance.currentUser;
     final lang = ref.watch(appLanguageProvider);
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(S.settingsTitle,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
+    return Scaffold(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(S.settingsTitle,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
 
           // 프로필
           Card(
@@ -357,7 +408,27 @@ class SettingsPage extends ConsumerWidget {
               ],
             ),
           ),
-        ],
+            const SizedBox(height: 24),
+
+            // ─── 저장 버튼 ───
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _saveSettings,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save),
+                label: Text(S.isKo ? '설정 저장' : 'Save Settings'),
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
