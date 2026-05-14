@@ -52,6 +52,17 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant ChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialClearBefore != oldWidget.initialClearBefore &&
+        widget.initialClearBefore != null &&
+        (_clearBefore == null ||
+            widget.initialClearBefore!.isAfter(_clearBefore!))) {
+      _clearBefore = widget.initialClearBefore;
+    }
+  }
+
+  @override
   void dispose() {
     _refreshTimer?.cancel();
     _service.dispose();
