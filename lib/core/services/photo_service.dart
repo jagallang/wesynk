@@ -333,16 +333,25 @@ class PhotoService {
   // ─── URL ───
 
   Future<String> thumbnailUrl(PhotoItem photo, {int size = 400}) async {
-    // Cloud Function이 썸네일을 생성했으면 thumb 경로 사용, 아니면 원본 fallback
+    if (photo.storagePath.isEmpty) return '';
     try {
       return await _storage.ref(photo.thumbnailPath(size)).getDownloadURL();
     } catch (_) {
-      return await _storage.ref(photo.storagePath).getDownloadURL();
+      try {
+        return await _storage.ref(photo.storagePath).getDownloadURL();
+      } catch (_) {
+        return '';
+      }
     }
   }
 
   Future<String> originalUrl(PhotoItem photo) async {
-    return await _storage.ref(photo.storagePath).getDownloadURL();
+    if (photo.storagePath.isEmpty) return '';
+    try {
+      return await _storage.ref(photo.storagePath).getDownloadURL();
+    } catch (_) {
+      return '';
+    }
   }
 
   // ─── 삭제 ───
