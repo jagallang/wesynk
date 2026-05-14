@@ -1,13 +1,12 @@
-import 'dart:ui_web' as ui_web;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:web/web.dart' as web;
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/photo_service.dart';
 import '../../../home/presentation/providers/photo_providers.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../widgets/video_player_factory.dart';
 
 class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({super.key});
@@ -436,7 +435,7 @@ class _GroupedPhotoGrid extends StatelessWidget {
                       height: 300,
                       child: Center(child: CircularProgressIndicator()));
                 }
-                return _VideoPlayerWidget(url: snap.data!);
+                return buildVideoPlayer(snap.data!);
               },
             ),
             Padding(
@@ -523,40 +522,3 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   }
 }
 
-// ─── 영상 재생 위젯 (웹 네이티브 <video>) ───
-
-class _VideoPlayerWidget extends StatefulWidget {
-  final String url;
-  const _VideoPlayerWidget({required this.url});
-
-  @override
-  State<_VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
-}
-
-class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
-  late final String _viewId;
-
-  @override
-  void initState() {
-    super.initState();
-    _viewId = 'video-${widget.url.hashCode}';
-    ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-      final video = web.document.createElement('video') as web.HTMLVideoElement;
-      video.src = widget.url;
-      video.controls = true;
-      video.autoplay = true;
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.backgroundColor = 'black';
-      return video;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 300,
-      child: HtmlElementView(viewType: _viewId),
-    );
-  }
-}
