@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,12 +52,73 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
-  bool _settingsLoaded = false;
+  bool _initialized = false;
+  bool _initializing = false;
+
+  /// 로그인 후 coupleId 결정 + 설정 로드
+  Future<void> _initialize() async {
+    if (_initializing) return;
+    _initializing = true;
+
+    try {
+      await _initCoupleId();
+      await _loadSavedSettings();
+    } catch (e) {
+      debugPrint('[AuthGate] initialize error: $e');
+    }
+
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  /// pairing 문서에서 coupleId 복원 또는 임시 생성
+  Future<void> _initCoupleId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final email = user.email?.toLowerCase();
+    final uid = user.uid;
+    final db = FirebaseFirestore.instance;
+    final service = ref.read(firestoreServiceProvider);
+
+    // 1. pairing 문서에서 매칭된 coupleId 조회
+    if (email != null) {
+      final pairingDoc = await db.collection('pairing').doc(email).get();
+      if (pairingDoc.exists) {
+        final data = pairingDoc.data()!;
+        final matched = data['matched'] == true;
+        final matchedCoupleId = data['matchedCoupleId'] as String?;
+
+        if (matched && matchedCoupleId != null) {
+          ref.read(coupleIdProvider.notifier).state = matchedCoupleId;
+          await service.ensureCoupleExists(matchedCoupleId);
+          debugPrint('[AuthGate] coupleId from pairing: $matchedCoupleId');
+          return;
+        }
+      }
+    }
+
+    // 2. 하위 호환: default-couple에 데이터가 있으면 그대로 사용
+    final defaultDoc = await db
+        .collection('couples')
+        .doc('default-couple')
+        .collection('items')
+        .limit(1)
+        .get();
+    if (defaultDoc.docs.isNotEmpty) {
+      ref.read(coupleIdProvider.notifier).state = 'default-couple';
+      debugPrint('[AuthGate] coupleId: default-couple (legacy data)');
+      return;
+    }
+
+    // 3. 새 사용자: 임시 coupleId 생성
+    final tempCoupleId = 'couple-$uid';
+    ref.read(coupleIdProvider.notifier).state = tempCoupleId;
+    await service.ensureCoupleExists(tempCoupleId);
+    await service.seedSampleData(tempCoupleId);
+    debugPrint('[AuthGate] coupleId: $tempCoupleId (new user)');
+  }
 
   Future<void> _loadSavedSettings() async {
-    if (_settingsLoaded) return;
-    _settingsLoaded = true;
-
     try {
       final service = ref.read(firestoreServiceProvider);
       final coupleId = ref.read(coupleIdProvider);
@@ -131,12 +194,17 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         body: Center(child: Text('${S.error}: $e')),
       ),
       data: (user) {
-        debugPrint('[AuthGate] user=${user?.email ?? 'null'}');
         if (user == null) {
-          _settingsLoaded = false;
+          _initialized = false;
+          _initializing = false;
           return const LoginPage();
         }
-        _loadSavedSettings();
+        if (!_initialized) {
+          _initialize();
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         return const HomePage();
       },
     );
