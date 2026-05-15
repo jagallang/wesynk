@@ -162,6 +162,12 @@ class ItemCard extends ConsumerWidget {
             eventColor: eventColor,
             theme: theme,
             onLongPress: () => _showActions(context, ref),
+            onEdit: () => _showEditForm(context, ref),
+            onDelete: () {
+              final service = ref.read(firestoreServiceProvider);
+              final coupleId = FirestoreService.defaultCoupleId;
+              service.deleteItem(coupleId: coupleId, itemId: item.id);
+            },
           );
         },
       ),
@@ -472,6 +478,8 @@ class _NoteExpandableCard extends StatefulWidget {
   final Color eventColor;
   final ThemeData theme;
   final VoidCallback onLongPress;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _NoteExpandableCard({
     required this.item,
@@ -482,6 +490,8 @@ class _NoteExpandableCard extends StatefulWidget {
     required this.eventColor,
     required this.theme,
     required this.onLongPress,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -563,13 +573,36 @@ class _NoteExpandableCardState extends State<_NoteExpandableCard> {
               ),
             ),
 
-            // 펼침: 본문
-            if (_expanded && widget.body.isNotEmpty) ...[
-              const Divider(height: 20),
-              Text(
-                widget.body,
-                style:
-                    widget.theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+            // 펼침: 본문 + 수정/삭제 버튼
+            if (_expanded) ...[
+              if (widget.body.isNotEmpty) ...[
+                const Divider(height: 20),
+                Text(
+                  widget.body,
+                  style:
+                      widget.theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: widget.onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: Text(S.isKo ? '수정' : 'Edit',
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: widget.onDelete,
+                    icon: const Icon(Icons.delete_outline,
+                        size: 16, color: Colors.red),
+                    label: Text(S.isKo ? '삭제' : 'Delete',
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.red)),
+                  ),
+                ],
               ),
             ],
           ],
