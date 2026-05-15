@@ -66,21 +66,23 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  void _onTabSelected(int i) {
+  void _onTabSelected(int i) async {
     final security = ref.read(securityProvider);
 
     if (security.pinEnabled && security.lockOnTabSwitch && i != _navIndex) {
-      Navigator.of(context).push<bool>(
+      final success = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => PinScreen(
             mode: PinMode.confirm,
             onSuccess: () {
-              setState(() => _navIndex = i);
               _lastActivity = DateTime.now();
             },
           ),
         ),
       );
+      if (success == true && mounted) {
+        setState(() => _navIndex = i);
+      }
     } else {
       setState(() => _navIndex = i);
       _lastActivity = DateTime.now();
