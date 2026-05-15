@@ -1,9 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/firestore_service.dart';
 import 'package:wesync_chat/wesync_chat.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/models/item_model.dart';
@@ -29,6 +29,8 @@ class _HomePageState extends ConsumerState<HomePage>
   int _navIndex = 0;
   DateTime _lastActivity = DateTime.now();
   DateTime? _chatClearBefore;
+
+  String get _myUid => FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
@@ -92,7 +94,7 @@ class _HomePageState extends ConsumerState<HomePage>
   Future<void> _loadChatClearedAt() async {
     final service = ref.read(firestoreServiceProvider);
     final cleared = await service.getChatClearedAt(
-        FirestoreService.defaultCoupleId);
+        ref.read(coupleIdProvider));
     if (cleared != null && mounted) {
       setState(() => _chatClearBefore = cleared);
     }
@@ -101,7 +103,7 @@ class _HomePageState extends ConsumerState<HomePage>
   void _onChatCleared(DateTime clearedAt) {
     setState(() => _chatClearBefore = clearedAt);
     ref.read(firestoreServiceProvider).saveChatClearedAt(
-        FirestoreService.defaultCoupleId, clearedAt);
+        ref.read(coupleIdProvider), clearedAt);
   }
 
   @override
@@ -112,8 +114,8 @@ class _HomePageState extends ConsumerState<HomePage>
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
           ChatScreen(
-            coupleId: 'default-couple',
-            myUid: 'me',
+            coupleId: ref.read(coupleIdProvider),
+            myUid: _myUid,
             onPickPhoto: () => _pickPhotoForChat(),
             onOpenAppSettings: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsPage()),
@@ -170,7 +172,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _addItem(Item item) {
     ref.read(firestoreServiceProvider).addItem(
-          coupleId: FirestoreService.defaultCoupleId,
+          coupleId: ref.read(coupleIdProvider),
           item: item,
         );
   }
@@ -216,7 +218,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   id: const Uuid().v4(),
                   type: ItemType.event,
                   date: dateKey,
-                  createdBy: 'me',
+                  createdBy: _myUid,
                   createdAt: DateTime.now(),
                   payload: {
                     'title': titleCtrl.text.trim(),
@@ -335,7 +337,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     id: const Uuid().v4(),
                     type: ItemType.note,
                     date: dateKey,
-                    createdBy: 'me',
+                    createdBy: _myUid,
                     createdAt: DateTime.now(),
                     payload: {
                       'title': titleCtrl.text.trim(),
@@ -461,7 +463,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     id: const Uuid().v4(),
                     type: ItemType.date,
                     date: dateKey,
-                    createdBy: 'me',
+                    createdBy: _myUid,
                     createdAt: DateTime.now(),
                     payload: {
                       'title': titleCtrl.text.trim(),
