@@ -126,8 +126,9 @@ final selectedDateKeyProvider = Provider<String>((ref) {
 final itemsForDateAndTypeProvider = StreamProvider.family<List<Item>,
     ({String dateKey, ItemType type})>((ref, params) {
   final service = ref.watch(firestoreServiceProvider);
+  final coupleId = ref.watch(coupleIdProvider);
   return service.itemsStream(
-    coupleId: FirestoreService.defaultCoupleId,
+    coupleId: coupleId,
     dateKey: params.dateKey,
     type: params.type,
   );
@@ -139,8 +140,9 @@ final eventCountByDateProvider =
   final service = ref.watch(firestoreServiceProvider);
   final firstDay = DateTime(month.year, month.month, 1);
   final lastDay = DateTime(month.year, month.month + 1, 0);
+  final coupleId = ref.watch(coupleIdProvider);
   return service.eventCountsStream(
-    coupleId: FirestoreService.defaultCoupleId,
+    coupleId: coupleId,
     firstDay: DateFormat('yyyy-MM-dd').format(firstDay),
     lastDay: DateFormat('yyyy-MM-dd').format(lastDay),
   );
