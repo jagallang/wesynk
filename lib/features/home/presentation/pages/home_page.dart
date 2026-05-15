@@ -75,7 +75,6 @@ class _HomePageState extends ConsumerState<HomePage>
           builder: (_) => PinScreen(
             mode: PinMode.confirm,
             onSuccess: () {
-              Navigator.of(context).pop();
               setState(() => _navIndex = i);
               _lastActivity = DateTime.now();
             },
