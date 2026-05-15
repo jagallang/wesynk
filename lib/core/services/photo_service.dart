@@ -157,7 +157,11 @@ class PhotoService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? 'me';
+  String get _myUid {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw StateError('PhotoService: no authenticated user');
+    return uid;
+  }
 
   PhotoService(this.coupleId);
 
