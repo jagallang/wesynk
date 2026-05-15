@@ -40,7 +40,6 @@ class FirestoreService {
     required String lastDay,
   }) {
     return _itemsCol(coupleId)
-        .where('type', isEqualTo: 'event')
         .snapshots()
         .map((snap) {
       final counts = <String, int>{};
