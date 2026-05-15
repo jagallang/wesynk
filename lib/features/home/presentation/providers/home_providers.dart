@@ -110,7 +110,7 @@ final firestoreServiceProvider = Provider<FirestoreService>(
 
 /// 현재 coupleId (초대 수락 시 동적 변경)
 final coupleIdProvider = StateProvider<String>(
-  (ref) => FirestoreService.defaultCoupleId,
+  (ref) => 'uninitialized',
 );
 
 /// 현재 선택된 날짜

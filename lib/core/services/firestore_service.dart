@@ -5,8 +5,6 @@ import '../../shared/models/item_model.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const defaultCoupleId = 'default-couple';
-
   CollectionReference<Map<String, dynamic>> _itemsCol(String coupleId) =>
       _db.collection('couples').doc(coupleId).collection('items');
 
@@ -143,12 +141,12 @@ class FirestoreService {
   }
 
   /// couples 문서 초기화 (최초 1회)
-  Future<void> ensureCoupleExists(String coupleId) async {
+  Future<void> ensureCoupleExists(String coupleId, {List<String>? members}) async {
     final doc = _db.collection('couples').doc(coupleId);
     final snap = await doc.get();
     if (!snap.exists) {
       await doc.set({
-        'members': ['me', 'partner'],
+        'members': members ?? [],
         'createdAt': Timestamp.fromDate(DateTime.now()),
       });
     }

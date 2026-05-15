@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -12,11 +13,12 @@ class ItemCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+    final coupleId = ref.read(coupleIdProvider);
     final payload = item.payload;
     final theme = Theme.of(context);
 
-    final eventColor = item.createdBy == 'me'
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final eventColor = (item.createdBy == myUid || item.createdBy == 'me')
         ? ref.watch(myEventColorProvider)
         : ref.watch(partnerEventColorProvider);
 
@@ -165,7 +167,7 @@ class ItemCard extends ConsumerWidget {
             onEdit: () => _showEditForm(context, ref),
             onDelete: () {
               final service = ref.read(firestoreServiceProvider);
-              final coupleId = FirestoreService.defaultCoupleId;
+              final coupleId = ref.read(coupleIdProvider);
               service.deleteItem(coupleId: coupleId, itemId: item.id);
             },
           );
@@ -176,7 +178,7 @@ class ItemCard extends ConsumerWidget {
 
   void _showActions(BuildContext context, WidgetRef ref) {
     final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+    final coupleId = ref.read(coupleIdProvider);
 
     showModalBottomSheet(
       context: context,
@@ -229,7 +231,7 @@ class ItemCard extends ConsumerWidget {
 
   void _showEditForm(BuildContext context, WidgetRef ref) {
     final service = ref.read(firestoreServiceProvider);
-    final coupleId = FirestoreService.defaultCoupleId;
+    final coupleId = ref.read(coupleIdProvider);
     final payload = Map<String, dynamic>.from(item.payload);
 
     switch (item.type) {
