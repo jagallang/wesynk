@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../models/message.dart';
 import '../models/chat_settings.dart';
 import '../models/chat_strings.dart';
@@ -176,12 +177,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, i) {
                     final msg = visible[i];
                     final isMine = msg.senderId == widget.myUid;
-                    return MessageBubble(
-                      message: msg,
-                      isMine: isMine,
-                      fontSize: _chatSettings.fontSize.size,
-                      showReadReceipts: _chatSettings.showReadReceipts,
-                      onLongPress: () => _showActions(msg, isMine),
+
+                    // 날짜 구분선: reverse=true이므로 i+1이 이전(더 오래된) 메시지
+                    final showDateSep = i == visible.length - 1 ||
+                        !_isSameDay(msg.sentAt, visible[i + 1].sentAt);
+
+                    return Column(
+                      children: [
+                        if (showDateSep) _DateSeparator(date: msg.sentAt),
+                        MessageBubble(
+                          message: msg,
+                          isMine: isMine,
+                          fontSize: _chatSettings.fontSize.size,
+                          showReadReceipts: _chatSettings.showReadReceipts,
+                          onLongPress: () => _showActions(msg, isMine),
+                        ),
+                      ],
                     );
                   },
                 );
@@ -285,3 +296,51 @@ const _backgroundColors = [
   Color(0xFFF5F5F5),
   Color(0xFFFFFDE7),
 ];
+
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+class _DateSeparator extends StatelessWidget {
+  final DateTime date;
+  const _DateSeparator({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: Colors.grey.shade300)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              _formatDate(date),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ),
+          Expanded(child: Divider(color: Colors.grey.shade300)),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(d.year, d.month, d.day);
+
+    if (target == today) return CS.isKo ? '오늘' : 'Today';
+    if (target == today.subtract(const Duration(days: 1))) {
+      return CS.isKo ? '어제' : 'Yesterday';
+    }
+
+    final locale = CS.isKo ? 'ko_KR' : 'en_US';
+    if (d.year == now.year) {
+      return DateFormat(CS.isKo ? 'M월 d일 (E)' : 'MMM d (E)', locale)
+          .format(d);
+    }
+    return DateFormat(
+            CS.isKo ? 'yyyy년 M월 d일 (E)' : 'MMM d, yyyy (E)', locale)
+        .format(d);
+  }
+}
