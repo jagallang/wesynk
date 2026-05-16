@@ -17,6 +17,8 @@ class ChatScreen extends StatefulWidget {
   final VoidCallback? onOpenAppSettings;
   final DateTime? initialClearBefore;
   final ValueChanged<DateTime>? onClearChat;
+  final String? myNickname;
+  final String? partnerNickname;
 
   const ChatScreen({
     super.key,
@@ -26,6 +28,8 @@ class ChatScreen extends StatefulWidget {
     this.onOpenAppSettings,
     this.initialClearBefore,
     this.onClearChat,
+    this.myNickname,
+    this.partnerNickname,
   });
 
   @override
@@ -188,6 +192,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         MessageBubble(
                           message: msg,
                           isMine: isMine,
+                          senderName: isMine
+                              ? widget.myNickname
+                              : widget.partnerNickname,
                           fontSize: _chatSettings.fontSize.size,
                           showReadReceipts: _chatSettings.showReadReceipts,
                           onLongPress: () => _showActions(msg, isMine),

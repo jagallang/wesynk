@@ -102,6 +102,12 @@ final googleEventColorProvider = StateProvider<Color>(
   (ref) => const Color(0xFF8E24AA), // 보라색
 );
 
+/// 내 닉네임
+final myNicknameProvider = StateProvider<String>((ref) => '');
+
+/// 파트너 닉네임
+final partnerNicknameProvider = StateProvider<String>((ref) => '');
+
 // ─── Firestore 서비스 ───
 
 final firestoreServiceProvider = Provider<FirestoreService>(

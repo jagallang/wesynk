@@ -171,6 +171,14 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         ref.read(googleCalendarEnabledProvider.notifier).state =
             s['googleCalEnabled'] as bool;
       }
+      if (s['myNickname'] != null) {
+        ref.read(myNicknameProvider.notifier).state =
+            s['myNickname'] as String;
+      }
+      if (s['partnerNickname'] != null) {
+        ref.read(partnerNicknameProvider.notifier).state =
+            s['partnerNickname'] as String;
+      }
     } catch (e) {
       debugPrint('[AuthGate] loadSettings error: $e');
     }

@@ -41,6 +41,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           'partnerEventColor': partnerColor.toARGB32(),
           'googleEventColor': googleColor.toARGB32(),
           'googleCalEnabled': googleCal,
+          'myNickname': ref.read(myNicknameProvider),
+          'partnerNickname': ref.read(partnerNicknameProvider),
         },
       );
 
@@ -58,6 +60,39 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showNicknameDialog(BuildContext context, WidgetRef ref,
+      StateProvider<String> provider, String title) {
+    final controller = TextEditingController(text: ref.read(provider));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 20,
+          decoration: InputDecoration(
+            hintText: S.isKo ? '닉네임 입력' : 'Enter nickname',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref.read(provider.notifier).state = controller.text.trim();
+              Navigator.pop(ctx);
+            },
+            child: Text(S.confirm),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -80,16 +115,60 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
           // 프로필
           Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor:
-                    customization.themeColor.withValues(alpha: 0.2),
-                child: Icon(Icons.person, color: customization.themeColor),
-              ),
-              title: Text(user?.displayName ?? S.myProfile),
-              subtitle: Text(user?.email ?? S.profilePlaceholder),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
+            child: Column(
+              children: [
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        customization.themeColor.withValues(alpha: 0.2),
+                    child: Icon(Icons.person, color: customization.themeColor),
+                  ),
+                  title: Text(user?.displayName ?? S.myProfile),
+                  subtitle: Text(user?.email ?? S.profilePlaceholder),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.badge_outlined),
+                  title: Text(S.isKo ? '내 닉네임' : 'My Nickname'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        ref.watch(myNicknameProvider).isEmpty
+                            ? (S.isKo ? '설정 안 됨' : 'Not set')
+                            : ref.watch(myNicknameProvider),
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => _showNicknameDialog(
+                      context, ref, myNicknameProvider,
+                      S.isKo ? '내 닉네임' : 'My Nickname'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.favorite_outline),
+                  title: Text(S.isKo ? '파트너 닉네임' : 'Partner Nickname'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        ref.watch(partnerNicknameProvider).isEmpty
+                            ? (S.isKo ? '설정 안 됨' : 'Not set')
+                            : ref.watch(partnerNicknameProvider),
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => _showNicknameDialog(
+                      context, ref, partnerNicknameProvider,
+                      S.isKo ? '파트너 닉네임' : 'Partner Nickname'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),

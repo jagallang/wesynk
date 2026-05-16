@@ -116,6 +116,8 @@ class _HomePageState extends ConsumerState<HomePage>
           ChatScreen(
             coupleId: ref.read(coupleIdProvider),
             myUid: _myUid,
+            myNickname: ref.watch(myNicknameProvider),
+            partnerNickname: ref.watch(partnerNicknameProvider),
             onPickPhoto: () => _pickPhotoForChat(),
             onOpenAppSettings: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsPage()),

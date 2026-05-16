@@ -9,6 +9,7 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback onLongPress;
   final double fontSize;
   final bool showReadReceipts;
+  final String? senderName;
 
   const MessageBubble({
     super.key,
@@ -17,6 +18,7 @@ class MessageBubble extends StatelessWidget {
     required this.onLongPress,
     this.fontSize = 14,
     this.showReadReceipts = true,
+    this.senderName,
   });
 
   @override
@@ -34,6 +36,18 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: align,
           children: [
+            if (!isMine && senderName != null && senderName!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 2),
+                child: Text(
+                  senderName!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
             GestureDetector(
             onLongPress: onLongPress,
             child: Container(
