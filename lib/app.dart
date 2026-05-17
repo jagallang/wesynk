@@ -90,7 +90,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
 
         if (matched && matchedCoupleId != null) {
           ref.read(coupleIdProvider.notifier).state = matchedCoupleId;
-          await service.ensureCoupleExists(matchedCoupleId);
+          await service.ensureCoupleExists(matchedCoupleId, members: [uid]);
           debugPrint('[AuthGate] coupleId from pairing: $matchedCoupleId');
           return;
         }
@@ -113,7 +113,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     // 3. 새 사용자: 임시 coupleId 생성
     final tempCoupleId = 'couple-$uid';
     ref.read(coupleIdProvider.notifier).state = tempCoupleId;
-    await service.ensureCoupleExists(tempCoupleId);
+    await service.ensureCoupleExists(tempCoupleId, members: [uid]);
     await service.seedSampleData(tempCoupleId);
     debugPrint('[AuthGate] coupleId: $tempCoupleId (new user)');
   }

@@ -844,6 +844,7 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
 
       final matchedId = await service.registerForPairing(
         myEmail: _myEmailCtrl.text.trim(),
+        myUid: FirebaseAuth.instance.currentUser!.uid,
         partnerEmail: _partnerEmailCtrl.text.trim(),
         coupleId: coupleId,
         pairingCode: code,

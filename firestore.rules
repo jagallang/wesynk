@@ -2,39 +2,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 인증 확인 헬퍼
     function isAuth() {
       return request.auth != null;
     }
 
-    // couples 컬렉션 — 멤버만 접근
-    match /couples/{coupleId} {
-      allow read: if isAuth();
-      allow write: if isAuth();
+    function isCoupleMemeber(coupleId) {
+      return isAuth() &&
+        request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
 
-      // items (일정/일기/사진 등) — 인증된 사용자만
+    // couples 컬렉션
+    match /couples/{coupleId} {
+      // 멤버만 읽기, 생성은 인증된 사용자 (새 커플 생성)
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isCoupleMemeber(coupleId);
+      allow delete: if false;
+
+      // items (일정/일기/사진 등) — 멤버만
       match /items/{itemId} {
-        allow read: if isAuth();
-        allow create: if isAuth();
-        allow update: if isAuth();
-        allow delete: if isAuth();
+        allow read: if isCoupleMemeber(coupleId);
+        allow create: if isCoupleMemeber(coupleId);
+        allow update: if isCoupleMemeber(coupleId);
+        allow delete: if isCoupleMemeber(coupleId);
       }
 
-      // messages (채팅) — 인증된 사용자만
+      // messages (채팅) — 멤버만
       match /messages/{messageId} {
-        allow read: if isAuth();
-        allow create: if isAuth();
-        allow update: if isAuth();
-        allow delete: if isAuth();
+        allow read: if isCoupleMemeber(coupleId);
+        allow create: if isCoupleMemeber(coupleId);
+        allow update: if isCoupleMemeber(coupleId);
+        allow delete: if isCoupleMemeber(coupleId);
       }
     }
 
-    // pairing — 본인 이메일 문서만 쓰기, 읽기는 인증된 사용자
+    // pairing — 본인 이메일 문서만 생성/수정
     match /pairing/{email} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAuth() && request.auth.token.email == email;
       allow update: if isAuth();
-      allow delete: if isAuth();
+      allow delete: if isAuth() && request.auth.token.email == email;
     }
   }
 }

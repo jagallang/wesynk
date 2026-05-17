@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/models/item_model.dart';
 
@@ -246,17 +248,19 @@ class FirestoreService {
   /// 매칭 성공 시 coupleId 반환, 대기 중이면 null
   Future<String?> registerForPairing({
     required String myEmail,
+    required String myUid,
     required String partnerEmail,
     required String coupleId,
     required String pairingCode,
   }) async {
     final myKey = myEmail.toLowerCase();
     final partnerKey = partnerEmail.toLowerCase();
-    final codeHash = pairingCode.hashCode.toString();
+    final codeHash = sha256.convert(utf8.encode(pairingCode)).toString();
 
     // 내 등록 저장
     await _db.collection('pairing').doc(myKey).set({
       'myEmail': myKey,
+      'uid': myUid,
       'partnerEmail': partnerKey,
       'coupleId': coupleId,
       'pairingCode': codeHash,
@@ -265,12 +269,12 @@ class FirestoreService {
     debugPrint('[FirestoreService] pairing registered: $myKey → $partnerKey');
 
     // 상대방 등록 확인 → 양방향 매칭 체크
-    return _checkMutualMatch(myKey, partnerKey, coupleId, codeHash);
+    return _checkMutualMatch(myKey, myUid, partnerKey, coupleId, codeHash);
   }
 
   /// 양방향 매칭 확인 (이메일 + 코드)
   Future<String?> _checkMutualMatch(
-      String myEmail, String partnerEmail, String myCoupleId, String myCodeHash) async {
+      String myEmail, String myUid, String partnerEmail, String myCoupleId, String myCodeHash) async {
     final partnerDoc =
         await _db.collection('pairing').doc(partnerEmail).get();
 
@@ -312,9 +316,11 @@ class FirestoreService {
       'matchedAt': now,
     });
 
-    // couples 문서 업데이트
+    // couples 문서 업데이트 (members는 uid 배열 — Rules에서 검증용)
+    final partnerUid = partnerData['uid'] as String? ?? '';
     await _db.collection('couples').doc(matchedCoupleId).set({
-      'members': [myEmail, partnerEmail],
+      'members': [myUid, if (partnerUid.isNotEmpty) partnerUid],
+      'memberEmails': [myEmail, partnerEmail],
       'createdAt': now,
     }, SetOptions(merge: true));
 
