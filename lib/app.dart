@@ -61,10 +61,13 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     _initializing = true;
 
     try {
+      debugPrint('[AuthGate] _initCoupleId starting...');
       await _initCoupleId();
+      debugPrint('[AuthGate] _initCoupleId done. coupleId=${ref.read(coupleIdProvider)}');
       await _loadSavedSettings();
-    } catch (e) {
-      debugPrint('[AuthGate] initialize error: $e');
+      debugPrint('[AuthGate] _loadSavedSettings done.');
+    } catch (e, stack) {
+      debugPrint('[AuthGate] initialize error: $e\n$stack');
     }
 
     if (mounted) setState(() => _initialized = true);
@@ -80,8 +83,11 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     final db = FirebaseFirestore.instance;
     final service = ref.read(firestoreServiceProvider);
 
+    debugPrint('[AuthGate] uid=$uid, email=$email');
+
     // 1. pairing 문서에서 매칭된 coupleId 조회
     if (email != null) {
+      debugPrint('[AuthGate] checking pairing/$email ...');
       final pairingDoc = await db.collection('pairing').doc(email).get();
       if (pairingDoc.exists) {
         final data = pairingDoc.data()!;
@@ -98,6 +104,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     }
 
     // 2. 하위 호환: default-couple에 데이터가 있으면 그대로 사용
+    debugPrint('[AuthGate] checking default-couple items...');
     final defaultDoc = await db
         .collection('couples')
         .doc('default-couple')
