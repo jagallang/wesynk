@@ -69,6 +69,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '242440576982',
     projectId: 'wesynk-app',
     storageBucket: 'wesynk-app.firebasestorage.app',
+    iosClientId: '242440576982-rimb5bq62da8c0o11i3e0d9kvn30thj7.apps.googleusercontent.com',
     iosBundleId: 'com.wesynk.wesynk',
   );
 }
