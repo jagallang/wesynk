@@ -67,11 +67,6 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
               if (gCount > 0) {
                 dots.add(_dot(googleColor));
               }
-              // 총 개수가 3개 이상이면 추가 dot
-              final total = wesyncCount + gCount;
-              if (total >= 3 && dots.length < 3) {
-                dots.add(_dot(myColor.withValues(alpha: 0.5)));
-              }
 
               return Row(
                 mainAxisSize: MainAxisSize.min,
