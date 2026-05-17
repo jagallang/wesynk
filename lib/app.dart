@@ -106,6 +106,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         .get();
     if (defaultDoc.docs.isNotEmpty) {
       ref.read(coupleIdProvider.notifier).state = 'default-couple';
+      await service.ensureCoupleExists('default-couple', members: [uid]);
       debugPrint('[AuthGate] coupleId: default-couple (legacy data)');
       return;
     }

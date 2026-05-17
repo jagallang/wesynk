@@ -141,7 +141,7 @@ class FirestoreService {
     }
   }
 
-  /// couples 문서 초기화 (최초 1회)
+  /// couples 문서 초기화 + members에 uid 추가 (기존 문서도 merge)
   Future<void> ensureCoupleExists(String coupleId, {List<String>? members}) async {
     final doc = _db.collection('couples').doc(coupleId);
     final snap = await doc.get();
@@ -150,6 +150,13 @@ class FirestoreService {
         'members': members ?? [],
         'createdAt': Timestamp.fromDate(DateTime.now()),
       });
+    } else if (members != null && members.isNotEmpty) {
+      // 기존 문서에 uid가 없으면 추가
+      final existing = List<String>.from(snap.data()?['members'] ?? []);
+      final updated = {...existing, ...members}.toList();
+      if (updated.length != existing.length) {
+        await doc.update({'members': updated});
+      }
     }
   }
 
