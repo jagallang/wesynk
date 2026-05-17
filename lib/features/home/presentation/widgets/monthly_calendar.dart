@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/holidays.dart';
 import '../providers/home_providers.dart';
 
 class MonthlyCalendar extends ConsumerStatefulWidget {
@@ -54,6 +55,19 @@ class _MonthlyCalendarState extends ConsumerState<MonthlyCalendar> {
             return List.filled(cnt.clamp(0, 3), 'event');
           },
           calendarBuilders: CalendarBuilders(
+            defaultBuilder: (context, day, focusedDay) {
+              final holiday = Holidays.getHoliday(day, isKo: S.isKo);
+              final isSunday = day.weekday == DateTime.sunday;
+              if (holiday != null || isSunday) {
+                return Center(
+                  child: Text(
+                    '${day.day}',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                );
+              }
+              return null;
+            },
             markerBuilder: (context, day, events) {
               if (events.isEmpty) return null;
               final key = _dateKey(day);
