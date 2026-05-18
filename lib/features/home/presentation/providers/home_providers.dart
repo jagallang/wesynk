@@ -48,7 +48,7 @@ const presetColors = <({String name, Color color})>[
   (name: '슬레이트', color: Color(0xFF607D8B)),
 ];
 
-/// 프리셋 앱 아이콘
+/// 프리셋 앱 아이콘 (앱 내 UI용 - 기존 유지)
 const presetIcons = <({String name, IconData icon})>[
   (name: '하트', icon: Icons.favorite),
   (name: '반려동물', icon: Icons.pets),
@@ -59,6 +59,54 @@ const presetIcons = <({String name, IconData icon})>[
   (name: '스파', icon: Icons.spa),
   (name: '여행', icon: Icons.flight),
 ];
+
+/// 홈화면 앱 아이콘 프리셋 (4모양 x 4색상 = 16개)
+class AppIconPreset {
+  final String id;         // 네이티브 아이콘 이름 (e.g. 'calendar_coral')
+  final String shapeName;  // 모양 이름
+  final String colorName;  // 색상 이름
+  final IconData icon;     // 미리보기용 Material 아이콘
+  final Color color;       // 미리보기용 색상
+
+  const AppIconPreset({
+    required this.id,
+    required this.shapeName,
+    required this.colorName,
+    required this.icon,
+    required this.color,
+  });
+}
+
+const _iconShapes = <({String name, String nameEn, IconData icon})>[
+  (name: '캘린더', nameEn: 'Calendar', icon: Icons.calendar_month),
+  (name: '다이어리', nameEn: 'Diary', icon: Icons.menu_book),
+  (name: 'WeSync', nameEn: 'WeSync', icon: Icons.sync_alt),
+  (name: 'Todo', nameEn: 'Todo', icon: Icons.check_box),
+];
+
+const _iconColors = <({String name, String nameEn, String key, Color color})>[
+  (name: '코랄', nameEn: 'Coral', key: 'coral', color: Color(0xFFE8757D)),
+  (name: '라벤더', nameEn: 'Lavender', key: 'lavender', color: Color(0xFF9B8EC4)),
+  (name: '블루', nameEn: 'Blue', key: 'blue', color: Color(0xFF6AABDB)),
+  (name: '민트', nameEn: 'Mint', key: 'mint', color: Color(0xFF5BBFAD)),
+];
+
+const _shapeKeys = ['calendar', 'diary', 'wesync', 'todo'];
+
+final appIconPresets = <AppIconPreset>[
+  for (int s = 0; s < _iconShapes.length; s++)
+    for (int c = 0; c < _iconColors.length; c++)
+      AppIconPreset(
+        id: '${_shapeKeys[s]}_${_iconColors[c].key}',
+        shapeName: _iconShapes[s].name,
+        colorName: _iconColors[c].name,
+        icon: _iconShapes[s].icon,
+        color: _iconColors[c].color,
+      ),
+];
+
+/// 현재 선택된 홈화면 아이콘 ID (null = 기본 아이콘)
+final selectedAppIconProvider = StateProvider<String?>((ref) => null);
 
 /// 프리셋 배경 색상
 const presetBackgrounds = <({String name, Color color})>[

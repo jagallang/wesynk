@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dynamic_icon/flutter_dynamic_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -452,6 +453,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+
+          // ─── 홈화면 앱 아이콘 ───
+          Text(S.isKo ? '홈화면 앱 아이콘' : 'App Icon',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          _AppIconSelector(),
           const SizedBox(height: 24),
 
           // ─── 보안 ───
@@ -1112,5 +1123,129 @@ class _ColorPickerTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _AppIconSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIcon = ref.watch(selectedAppIconProvider);
+    final customization = ref.watch(appCustomizationProvider);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              S.isKo
+                  ? '홈화면에 표시되는 앱 아이콘을 변경합니다'
+                  : 'Change the app icon on your home screen',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.75,
+              ),
+              itemCount: appIconPresets.length,
+              itemBuilder: (context, index) {
+                final preset = appIconPresets[index];
+                final isSelected = selectedIcon == preset.id ||
+                    (selectedIcon == null && preset.id == 'wesync_coral');
+
+                return GestureDetector(
+                  onTap: () => _changeIcon(context, ref, preset),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: preset.color,
+                          borderRadius: BorderRadius.circular(14),
+                          border: isSelected
+                              ? Border.all(
+                                  color: customization.themeColor, width: 3)
+                              : Border.all(
+                                  color: Colors.grey.shade200, width: 1),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color:
+                                        preset.color.withValues(alpha: 0.4),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child:
+                            Icon(preset.icon, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        preset.shapeName,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isSelected
+                              ? customization.themeColor
+                              : Colors.grey.shade500,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      Text(
+                        preset.colorName,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: isSelected
+                              ? preset.color
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeIcon(
+      BuildContext context, WidgetRef ref, AppIconPreset preset) async {
+    try {
+      final current = ref.read(selectedAppIconProvider);
+      if (current == preset.id) return;
+
+      await FlutterDynamicIcon.setAlternateIconName(preset.id);
+      ref.read(selectedAppIconProvider.notifier).state = preset.id;
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                S.isKo ? '앱 아이콘이 변경되었습니다' : 'App icon changed'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${S.error}: $e')),
+        );
+      }
+    }
   }
 }

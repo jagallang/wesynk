@@ -12,19 +12,74 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+        </activity>
+
+        <!-- Default icon (enabled) -->
+        <activity-alias
+            android:name=".MainActivityDefault"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <!-- Alternate icons -->
+        <activity-alias android:name=".calendar_coral" android:enabled="false" android:exported="true" android:icon="@mipmap/calendar_coral" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".calendar_lavender" android:enabled="false" android:exported="true" android:icon="@mipmap/calendar_lavender" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".calendar_blue" android:enabled="false" android:exported="true" android:icon="@mipmap/calendar_blue" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".calendar_mint" android:enabled="false" android:exported="true" android:icon="@mipmap/calendar_mint" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".diary_coral" android:enabled="false" android:exported="true" android:icon="@mipmap/diary_coral" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".diary_lavender" android:enabled="false" android:exported="true" android:icon="@mipmap/diary_lavender" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".diary_blue" android:enabled="false" android:exported="true" android:icon="@mipmap/diary_blue" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".diary_mint" android:enabled="false" android:exported="true" android:icon="@mipmap/diary_mint" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".wesync_coral" android:enabled="false" android:exported="true" android:icon="@mipmap/wesync_coral" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".wesync_lavender" android:enabled="false" android:exported="true" android:icon="@mipmap/wesync_lavender" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".wesync_blue" android:enabled="false" android:exported="true" android:icon="@mipmap/wesync_blue" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".wesync_mint" android:enabled="false" android:exported="true" android:icon="@mipmap/wesync_mint" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".todo_coral" android:enabled="false" android:exported="true" android:icon="@mipmap/todo_coral" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".todo_lavender" android:enabled="false" android:exported="true" android:icon="@mipmap/todo_lavender" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".todo_blue" android:enabled="false" android:exported="true" android:icon="@mipmap/todo_blue" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".todo_mint" android:enabled="false" android:exported="true" android:icon="@mipmap/todo_mint" android:targetActivity=".MainActivity">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
