@@ -102,16 +102,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final lang = ref.watch(appLanguageProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text(S.settingsTitle),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text(S.settingsTitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
 
           // 프로필
           Card(
