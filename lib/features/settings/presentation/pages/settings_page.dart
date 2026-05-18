@@ -456,12 +456,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const SizedBox(height: 24),
 
           // ─── 홈화면 앱 아이콘 ───
-          Text(S.isKo ? '홈화면 앱 아이콘' : 'App Icon',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
           _AppIconSelector(),
           const SizedBox(height: 24),
 
@@ -1134,19 +1128,20 @@ class _AppIconSelector extends ConsumerWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              S.isKo
-                  ? '홈화면에 표시되는 앱 아이콘을 변경합니다'
-                  : 'Change the app icon on your home screen',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
+      child: ExpansionTile(
+        leading: Icon(Icons.app_shortcut, color: customization.themeColor),
+        title: Text(S.isKo ? '홈화면 앱 아이콘' : 'App Icon'),
+        subtitle: Text(
+          S.isKo
+              ? '홈화면에 표시되는 앱 아이콘을 변경합니다'
+              : 'Change the app icon on your home screen',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        ),
+        initiallyExpanded: false,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1160,6 +1155,7 @@ class _AppIconSelector extends ConsumerWidget {
                 final preset = appIconPresets[index];
                 final isSelected = selectedIcon == preset.id ||
                     (selectedIcon == null && preset.id == 'wesync_coral');
+                final isWesync = preset.id.startsWith('wesync_');
 
                 return GestureDetector(
                   onTap: () => _changeIcon(context, ref, preset),
@@ -1187,8 +1183,22 @@ class _AppIconSelector extends ConsumerWidget {
                                 ]
                               : null,
                         ),
-                        child:
-                            Icon(preset.icon, color: Colors.white, size: 28),
+                        child: isWesync
+                            ? Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(Icons.sync_alt,
+                                      color: Colors.white, size: 28),
+                                  Positioned(
+                                    bottom: 8,
+                                    child: Icon(Icons.favorite,
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        size: 12),
+                                  ),
+                                ],
+                              )
+                            : Icon(preset.icon,
+                                color: Colors.white, size: 28),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1217,8 +1227,8 @@ class _AppIconSelector extends ConsumerWidget {
                 );
               },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

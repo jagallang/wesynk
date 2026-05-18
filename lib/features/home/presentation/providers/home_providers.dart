@@ -108,6 +108,9 @@ final appIconPresets = <AppIconPreset>[
 /// 현재 선택된 홈화면 아이콘 ID (null = 기본 아이콘)
 final selectedAppIconProvider = StateProvider<String?>((ref) => null);
 
+/// 채팅방 타이틀 (null = 기본값 '우리')
+final chatTitleProvider = StateProvider<String?>((ref) => null);
+
 /// 프리셋 배경 색상
 const presetBackgrounds = <({String name, Color color})>[
   (name: '웜크림', color: Color(0xFFFFFBF8)),

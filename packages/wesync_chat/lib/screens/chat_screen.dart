@@ -19,6 +19,8 @@ class ChatScreen extends StatefulWidget {
   final ValueChanged<DateTime>? onClearChat;
   final String? myNickname;
   final String? partnerNickname;
+  final String? chatTitle;
+  final ValueChanged<String>? onChatTitleChanged;
 
   const ChatScreen({
     super.key,
@@ -30,6 +32,8 @@ class ChatScreen extends StatefulWidget {
     this.onClearChat,
     this.myNickname,
     this.partnerNickname,
+    this.chatTitle,
+    this.onChatTitleChanged,
   });
 
   @override
@@ -74,6 +78,42 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  void _showTitleEditDialog(BuildContext context) {
+    final controller = TextEditingController(
+        text: widget.chatTitle ?? CS.chatTitle);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(CS.isKo ? '채팅방 이름 변경' : 'Change Chat Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 20,
+          decoration: InputDecoration(
+            hintText: CS.isKo ? '채팅방 이름 입력' : 'Enter chat name',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(CS.isKo ? '취소' : 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                widget.onChatTitleChanged?.call(name);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text(CS.isKo ? '변경' : 'Change'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = _backgroundColors[_chatSettings.backgroundIndex];
@@ -89,11 +129,14 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
               child: Row(
                 children: [
-                  Text(CS.chatTitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  GestureDetector(
+                    onLongPress: () => _showTitleEditDialog(context),
+                    child: Text(widget.chatTitle ?? CS.chatTitle,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                  ),
                   if (_chatSettings.defaultEphemeral) ...[
                     const SizedBox(width: 8),
                     Container(

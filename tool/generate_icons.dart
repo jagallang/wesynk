@@ -253,8 +253,8 @@ void _drawWeSync(img.Image image, int size, img.Color white) {
   final s = size.toDouble();
   final thick = s * 0.07;
   final m = s * 0.22;
-  final top = s * 0.28;
-  final bot = s * 0.72;
+  final top = s * 0.24;
+  final bot = s * 0.64;
   final w = s - 2 * m;
   final mid = (top + bot) / 2 + s * 0.06;
 
@@ -271,6 +271,31 @@ void _drawWeSync(img.Image image, int size, img.Color white) {
   _drawFilledCircle(image, m + w * 0.5, mid, capR, white);
   _drawFilledCircle(image, m + w * 0.75, bot, capR, white);
   _drawFilledCircle(image, m + w, top, capR, white);
+
+  // Heart below W
+  final hx = s / 2;
+  final hy = s * 0.78;
+  final hr = s * 0.06;
+  _drawHeart(image, hx, hy, hr, white);
+}
+
+void _drawHeart(img.Image image, double cx, double cy, double radius, img.Color color) {
+  // Simple heart: two circles + triangle
+  final r = radius;
+  // Left circle
+  _drawFilledCircle(image, cx - r * 0.55, cy - r * 0.2, r * 0.65, color);
+  // Right circle
+  _drawFilledCircle(image, cx + r * 0.55, cy - r * 0.2, r * 0.65, color);
+  // Bottom triangle
+  for (int py = cy.toInt(); py < (cy + r * 1.3).toInt(); py++) {
+    final progress = (py - cy) / (r * 1.3);
+    final halfW = r * 1.1 * (1 - progress);
+    for (int px = (cx - halfW).toInt(); px <= (cx + halfW).toInt(); px++) {
+      if (px >= 0 && px < image.width && py >= 0 && py < image.height) {
+        image.setPixel(px, py, color);
+      }
+    }
+  }
 }
 
 void _drawTodo(img.Image image, int size, img.Color white) {

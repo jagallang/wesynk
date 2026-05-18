@@ -118,6 +118,16 @@ class _HomePageState extends ConsumerState<HomePage>
             myUid: _myUid,
             myNickname: ref.watch(myNicknameProvider),
             partnerNickname: ref.watch(partnerNicknameProvider),
+            chatTitle: ref.watch(chatTitleProvider),
+            onChatTitleChanged: (title) {
+              ref.read(chatTitleProvider.notifier).state = title;
+              final coupleId = ref.read(coupleIdProvider);
+              final service = ref.read(firestoreServiceProvider);
+              service.saveSettings(
+                coupleId: coupleId,
+                settings: {'chatTitle': title},
+              );
+            },
             onPickPhoto: () => _pickPhotoForChat(),
             onOpenAppSettings: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsPage()),

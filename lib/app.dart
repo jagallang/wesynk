@@ -187,6 +187,10 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         ref.read(partnerNicknameProvider.notifier).state =
             s['partnerNickname'] as String;
       }
+      if (s['chatTitle'] != null) {
+        ref.read(chatTitleProvider.notifier).state =
+            s['chatTitle'] as String;
+      }
     } catch (e) {
       debugPrint('[AuthGate] loadSettings error: $e');
     }
