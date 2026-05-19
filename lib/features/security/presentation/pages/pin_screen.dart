@@ -93,6 +93,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       if (_input == _firstPin) {
         ref.read(securityProvider.notifier).state =
             ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input);
+        ref.read(isUnlockedProvider.notifier).state = true;
         widget.onSuccess?.call();
         if (mounted) Navigator.of(context).pop(true);
       } else {

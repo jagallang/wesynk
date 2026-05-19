@@ -25,7 +25,7 @@ class SecuritySettings {
   final AutoLockDuration autoLockDuration;
 
   const SecuritySettings({
-    this.pinEnabled = false,
+    this.pinEnabled = true,
     this.pin,
     this.lockOnTabSwitch = false,
     this.autoLockDuration = AutoLockDuration.off,

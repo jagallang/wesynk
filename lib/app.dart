@@ -202,6 +202,10 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     final isUnlocked = ref.watch(isUnlockedProvider);
 
     if (security.pinEnabled && !isUnlocked) {
+      // PIN이 아직 설정 안 됐으면 설정 화면, 설정됐으면 잠금 해제 화면
+      if (security.pin == null) {
+        return const PinScreen(mode: PinMode.setup);
+      }
       return const PinScreen(mode: PinMode.unlock);
     }
 

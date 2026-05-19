@@ -579,22 +579,30 @@ class _SecurityCard extends ConsumerWidget {
         children: [
           SwitchListTile(
             title: Text(S.appLock),
-            subtitle:
-                Text(security.pinEnabled ? S.appLockOn : S.appLockOff),
+            subtitle: Text(security.pinEnabled
+                ? (security.pin != null ? S.appLockOn : (S.isKo ? '비밀번호를 설정해주세요' : 'Please set a PIN'))
+                : S.appLockOff),
             value: security.pinEnabled,
             onChanged: (v) {
               if (v) {
+                // 활성화: PIN 설정 화면으로
                 Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => const PinScreen(mode: PinMode.setup)));
               } else {
-                Navigator.of(context).push<bool>(MaterialPageRoute(
-                  builder: (_) => PinScreen(
-                    mode: PinMode.confirm,
-                    onSuccess: () => ref
-                        .read(securityProvider.notifier)
-                        .state = const SecuritySettings(),
-                  ),
-                ));
+                // 비활성화: 기존 PIN 확인 후 해제
+                if (security.pin != null) {
+                  Navigator.of(context).push<bool>(MaterialPageRoute(
+                    builder: (_) => PinScreen(
+                      mode: PinMode.confirm,
+                      onSuccess: () => ref
+                          .read(securityProvider.notifier)
+                          .state = const SecuritySettings(pinEnabled: false),
+                    ),
+                  ));
+                } else {
+                  ref.read(securityProvider.notifier).state =
+                      const SecuritySettings(pinEnabled: false);
+                }
               }
             },
           ),
