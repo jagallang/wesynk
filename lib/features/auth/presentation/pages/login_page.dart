@@ -39,18 +39,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           child: Column(
             children: [
               const Spacer(flex: 3),
-              Icon(Icons.favorite, size: 72, color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
               Text(
-                'WeSync',
+                'WESYNC',
                 style: theme.textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.primary,
+                  letterSpacing: 4,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(S.loginSubtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
               const Spacer(flex: 2),
               SizedBox(
                 width: double.infinity,

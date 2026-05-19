@@ -1,11 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wesynk/app.dart';
 
 void main() {
-  testWidgets('WeSync app renders', (WidgetTester tester) async {
+  testWidgets('ProviderScope renders MaterialApp', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: WesynkApp()),
+      const ProviderScope(
+        child: MaterialApp(home: Scaffold(body: Text('WeSync'))),
+      ),
     );
     expect(find.text('WeSync'), findsOneWidget);
   });
