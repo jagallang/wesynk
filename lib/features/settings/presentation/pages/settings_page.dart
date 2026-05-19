@@ -1163,8 +1163,6 @@ class _AppIconSelector extends ConsumerWidget {
                 final preset = appIconPresets[index];
                 final isSelected = selectedIcon == preset.id ||
                     (selectedIcon == null && preset.id == 'wesync_coral');
-                final isWesync = preset.id.startsWith('wesync_');
-
                 return GestureDetector(
                   onTap: () => _changeIcon(context, ref, preset),
                   child: Column(
@@ -1191,21 +1189,7 @@ class _AppIconSelector extends ConsumerWidget {
                                 ]
                               : null,
                         ),
-                        child: isWesync
-                            ? Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Icon(Icons.sync_alt,
-                                      color: Colors.white, size: 28),
-                                  Positioned(
-                                    bottom: 8,
-                                    child: Icon(Icons.favorite,
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                        size: 12),
-                                  ),
-                                ],
-                              )
-                            : Icon(preset.icon,
+                        child: Icon(preset.icon,
                                 color: Colors.white, size: 28),
                       ),
                       const SizedBox(height: 4),
