@@ -55,6 +55,19 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
   bool _initialized = false;
   bool _initializing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadLocalSecurity();
+  }
+
+  Future<void> _loadLocalSecurity() async {
+    final settings = await loadSecurityFromLocal();
+    if (mounted) {
+      ref.read(securityProvider.notifier).state = settings;
+    }
+  }
+
   /// 로그인 후 coupleId 결정 + 설정 로드
   Future<void> _initialize() async {
     if (_initializing) return;

@@ -91,9 +91,11 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       });
     } else {
       if (_input == _firstPin) {
-        ref.read(securityProvider.notifier).state =
+        final newSettings =
             ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input);
+        ref.read(securityProvider.notifier).state = newSettings;
         ref.read(isUnlockedProvider.notifier).state = true;
+        saveSecurityToLocal(newSettings);
         widget.onSuccess?.call();
         if (mounted && Navigator.of(context).canPop()) {
           Navigator.of(context).pop(true);

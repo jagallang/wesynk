@@ -594,14 +594,17 @@ class _SecurityCard extends ConsumerWidget {
                   Navigator.of(context).push<bool>(MaterialPageRoute(
                     builder: (_) => PinScreen(
                       mode: PinMode.confirm,
-                      onSuccess: () => ref
-                          .read(securityProvider.notifier)
-                          .state = const SecuritySettings(pinEnabled: false),
+                      onSuccess: () {
+                        const disabled = SecuritySettings(pinEnabled: false);
+                        ref.read(securityProvider.notifier).state = disabled;
+                        saveSecurityToLocal(disabled);
+                      },
                     ),
                   ));
                 } else {
-                  ref.read(securityProvider.notifier).state =
-                      const SecuritySettings(pinEnabled: false);
+                  const disabled = SecuritySettings(pinEnabled: false);
+                  ref.read(securityProvider.notifier).state = disabled;
+                  saveSecurityToLocal(disabled);
                 }
               }
             },
@@ -631,8 +634,11 @@ class _SecurityCard extends ConsumerWidget {
               title: Text(S.lockOnTabSwitch),
               subtitle: Text(S.lockOnTabSwitchDesc),
               value: security.lockOnTabSwitch,
-              onChanged: (v) => ref.read(securityProvider.notifier).state =
-                  security.copyWith(lockOnTabSwitch: v),
+              onChanged: (v) {
+                final updated = security.copyWith(lockOnTabSwitch: v);
+                ref.read(securityProvider.notifier).state = updated;
+                saveSecurityToLocal(updated);
+              },
             ),
             const Divider(height: 1),
             // 자동 잠금 시간
@@ -677,8 +683,9 @@ class _SecurityCard extends ConsumerWidget {
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () {
-                  ref.read(securityProvider.notifier).state =
-                      security.copyWith(autoLockDuration: d);
+                  final updated = security.copyWith(autoLockDuration: d);
+                  ref.read(securityProvider.notifier).state = updated;
+                  saveSecurityToLocal(updated);
                   Navigator.pop(context);
                 },
               );
