@@ -370,81 +370,13 @@ class _GroupedPhotoGrid extends StatelessWidget {
   }
 
   void _showDetail(BuildContext context, PhotoItem photo) {
-    if (photo.isVideo) {
-      _showVideoDetail(context, photo);
-    } else {
-      _showImageDetail(context, photo);
-    }
-  }
-
-  void _showImageDetail(BuildContext context, PhotoItem photo) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FutureBuilder<String>(
-              future: photoService.originalUrl(photo),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator()));
-                }
-                return CachedNetworkImage(
-                  imageUrl: snap.data!,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator())),
-                  errorWidget: (_, __, ___) => const SizedBox(
-                      height: 200, child: Icon(Icons.broken_image)),
-                );
-              },
-            ),
-            if (photo.caption != null)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(photo.caption!),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Text(photo.date,
-                  style:
-                      const TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showVideoDetail(BuildContext context, PhotoItem photo) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FutureBuilder<String>(
-              future: photoService.originalUrl(photo),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator()));
-                }
-                return buildVideoPlayer(snap.data!);
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Text(photo.date,
-                  style:
-                      const TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
-          ],
+    final startIndex = photos.indexWhere((p) => p.id == photo.id);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _PhotoViewer(
+          photos: photos,
+          initialIndex: startIndex >= 0 ? startIndex : 0,
+          photoService: photoService,
         ),
       ),
     );
@@ -538,6 +470,242 @@ class _PhotoThumbState extends State<_PhotoThumb> {
           errorWidget: (_, __, ___) => Container(
               color: Colors.grey.shade200,
               child: const Icon(Icons.broken_image)),
+        );
+      },
+    );
+  }
+}
+
+// ─── 풀스크린 사진 뷰어 ───
+
+enum _MediaFilter { all, photo, video }
+
+class _PhotoViewer extends StatefulWidget {
+  final List<PhotoItem> photos;
+  final int initialIndex;
+  final PhotoService photoService;
+
+  const _PhotoViewer({
+    required this.photos,
+    required this.initialIndex,
+    required this.photoService,
+  });
+
+  @override
+  State<_PhotoViewer> createState() => _PhotoViewerState();
+}
+
+class _PhotoViewerState extends State<_PhotoViewer> {
+  late PageController _pageController;
+  late List<PhotoItem> _filtered;
+  _MediaFilter _filter = _MediaFilter.all;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyFilter(_MediaFilter.all, widget.initialIndex);
+  }
+
+  void _applyFilter(_MediaFilter filter, [int? jumpToOriginalIndex]) {
+    final original = jumpToOriginalIndex != null
+        ? widget.photos[jumpToOriginalIndex]
+        : _filtered[_currentIndex];
+
+    setState(() {
+      _filter = filter;
+      switch (filter) {
+        case _MediaFilter.all:
+          _filtered = widget.photos;
+        case _MediaFilter.photo:
+          _filtered = widget.photos.where((p) => !p.isVideo).toList();
+        case _MediaFilter.video:
+          _filtered = widget.photos.where((p) => p.isVideo).toList();
+      }
+      // 현재 보던 사진의 위치를 필터된 목록에서 찾기
+      var idx = _filtered.indexWhere((p) => p.id == original.id);
+      if (idx < 0) idx = 0;
+      _currentIndex = idx;
+      _pageController = PageController(initialPage: idx);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          '${_currentIndex + 1} / ${_filtered.length}',
+          style: const TextStyle(fontSize: 16),
+        ),
+        centerTitle: true,
+        actions: [
+          // 필터 버튼
+          PopupMenuButton<_MediaFilter>(
+            icon: Icon(
+              _filter == _MediaFilter.all
+                  ? Icons.filter_list
+                  : (_filter == _MediaFilter.photo
+                      ? Icons.photo
+                      : Icons.videocam),
+              color: Colors.white,
+            ),
+            onSelected: (f) => _applyFilter(f),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _MediaFilter.all,
+                child: Row(
+                  children: [
+                    Icon(Icons.photo_library,
+                        color: _filter == _MediaFilter.all
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(S.isKo ? '전체' : 'All'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: _MediaFilter.photo,
+                child: Row(
+                  children: [
+                    Icon(Icons.photo,
+                        color: _filter == _MediaFilter.photo
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(S.isKo ? '사진만' : 'Photos'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: _MediaFilter.video,
+                child: Row(
+                  children: [
+                    Icon(Icons.videocam,
+                        color: _filter == _MediaFilter.video
+                            ? theme.colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text(S.isKo ? '영상만' : 'Videos'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: _filtered.isEmpty
+          ? Center(
+              child: Text(
+                S.isKo ? '항목이 없습니다' : 'No items',
+                style: const TextStyle(color: Colors.white54),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _filtered.length,
+                    onPageChanged: (i) => setState(() => _currentIndex = i),
+                    itemBuilder: (context, index) {
+                      final photo = _filtered[index];
+                      return _MediaPage(
+                        photo: photo,
+                        photoService: widget.photoService,
+                      );
+                    },
+                  ),
+                ),
+                // 하단 정보
+                _buildBottomInfo(),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildBottomInfo() {
+    if (_currentIndex >= _filtered.length) return const SizedBox.shrink();
+    final photo = _filtered[_currentIndex];
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (photo.caption != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(photo.caption!,
+                  style: const TextStyle(color: Colors.white, fontSize: 14)),
+            ),
+          Text(
+            photo.date,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MediaPage extends StatefulWidget {
+  final PhotoItem photo;
+  final PhotoService photoService;
+
+  const _MediaPage({required this.photo, required this.photoService});
+
+  @override
+  State<_MediaPage> createState() => _MediaPageState();
+}
+
+class _MediaPageState extends State<_MediaPage> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = widget.photoService.originalUrl(widget.photo);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(
+              child: CircularProgressIndicator(color: Colors.white));
+        }
+        if (widget.photo.isVideo) {
+          return Center(child: buildVideoPlayer(snap.data!));
+        }
+        return InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Center(
+            child: CachedNetworkImage(
+              imageUrl: snap.data!,
+              fit: BoxFit.contain,
+              placeholder: (_, __) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white)),
+              errorWidget: (_, __, ___) =>
+                  const Icon(Icons.broken_image, color: Colors.white54, size: 48),
+            ),
+          ),
         );
       },
     );
