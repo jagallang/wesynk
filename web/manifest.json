@@ -1,11 +1,11 @@
 {
-    "name": "wesynk",
-    "short_name": "wesynk",
+    "name": "WeSync",
+    "short_name": "WeSync",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFBF8",
+    "theme_color": "#E8757D",
+    "description": "WeSync - Shared calendar for couples",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

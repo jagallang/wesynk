@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_icon/flutter_dynamic_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -455,9 +456,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           const SizedBox(height: 24),
 
-          // ─── 홈화면 앱 아이콘 ───
-          _AppIconSelector(),
-          const SizedBox(height: 24),
+          // ─── 홈화면 앱 아이콘 (iOS/Android만) ───
+          if (!kIsWeb) ...[
+            _AppIconSelector(),
+            const SizedBox(height: 24),
+          ],
 
           // ─── 보안 ───
           Text(S.security,
@@ -1238,7 +1241,9 @@ class _AppIconSelector extends ConsumerWidget {
       final current = ref.read(selectedAppIconProvider);
       if (current == preset.id) return;
 
-      await FlutterDynamicIcon.setAlternateIconName(preset.id);
+      if (!kIsWeb) {
+        await FlutterDynamicIcon.setAlternateIconName(preset.id);
+      }
       ref.read(selectedAppIconProvider.notifier).state = preset.id;
 
       if (context.mounted) {
