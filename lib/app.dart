@@ -235,6 +235,10 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         ref.read(notifAlbumProvider.notifier).state =
             s['notif_album'] as bool;
       }
+      if (s['defaultTab'] != null) {
+        ref.read(defaultTabProvider.notifier).state =
+            (s['defaultTab'] as int).clamp(0, 2);
+      }
     } catch (e) {
       debugPrint('[AuthGate] loadSettings error: $e');
     }

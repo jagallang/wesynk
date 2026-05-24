@@ -111,6 +111,9 @@ final selectedAppIconProvider = StateProvider<String?>((ref) => null);
 /// 채팅방 타이틀 (null = 기본값 '우리')
 final chatTitleProvider = StateProvider<String?>((ref) => null);
 
+/// 최초 진입 탭 (0=캘린더, 1=채팅, 2=앨범)
+final defaultTabProvider = StateProvider<int>((ref) => 0);
+
 /// 알림 설정
 final notifChatProvider = StateProvider<bool>((ref) => true);
 final notifCalendarProvider = StateProvider<bool>((ref) => true);

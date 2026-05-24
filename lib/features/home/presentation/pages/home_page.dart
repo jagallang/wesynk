@@ -35,6 +35,7 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void initState() {
     super.initState();
+    _navIndex = ref.read(defaultTabProvider).clamp(0, 2);
     _tabController = TabController(length: tabOrder.length, vsync: this);
     _loadChatClearedAt();
     WidgetsBinding.instance.addObserver(this);

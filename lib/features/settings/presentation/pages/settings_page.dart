@@ -462,6 +462,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             const SizedBox(height: 24),
           ],
 
+          // ─── 시작 페이지 ───
+          Text(S.isKo ? '시작 페이지' : 'Start Page',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          _DefaultTabSelector(),
+          const SizedBox(height: 24),
+
           // ─── 알림 ───
           Text(S.isKo ? '알림' : 'Notifications',
               style: Theme.of(context)
@@ -1159,6 +1169,41 @@ class _ColorPickerTile extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DefaultTabSelector extends ConsumerWidget {
+  static const _tabs = [
+    (icon: Icons.calendar_month, ko: '캘린더', en: 'Calendar'),
+    (icon: Icons.chat_bubble_outline, ko: '채팅', en: 'Chat'),
+    (icon: Icons.photo_library_outlined, ko: '앨범', en: 'Album'),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(defaultTabProvider);
+
+    return Card(
+      child: Column(
+        children: List.generate(_tabs.length, (i) {
+          final tab = _tabs[i];
+          return RadioListTile<int>(
+            secondary: Icon(tab.icon),
+            title: Text(S.isKo ? tab.ko : tab.en),
+            value: i,
+            groupValue: current,
+            onChanged: (v) {
+              if (v == null) return;
+              ref.read(defaultTabProvider.notifier).state = v;
+              final coupleId = ref.read(coupleIdProvider);
+              final service = ref.read(firestoreServiceProvider);
+              service.saveSettings(
+                  coupleId: coupleId, settings: {'defaultTab': v});
+            },
+          );
+        }),
       ),
     );
   }
