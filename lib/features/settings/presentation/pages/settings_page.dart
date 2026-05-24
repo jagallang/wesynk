@@ -586,7 +586,7 @@ class _SecurityCard extends ConsumerWidget {
                 ? (security.pin != null ? S.appLockOn : (S.isKo ? '비밀번호를 설정해주세요' : 'Please set a PIN'))
                 : S.appLockOff),
             value: security.pinEnabled,
-            onChanged: (v) {
+            onChanged: (v) async {
               if (v) {
                 // 활성화: PIN 설정 화면으로
                 Navigator.of(context).push(MaterialPageRoute(
@@ -597,17 +597,17 @@ class _SecurityCard extends ConsumerWidget {
                   Navigator.of(context).push<bool>(MaterialPageRoute(
                     builder: (_) => PinScreen(
                       mode: PinMode.confirm,
-                      onSuccess: () {
+                      onSuccess: () async {
                         const disabled = SecuritySettings(pinEnabled: false);
                         ref.read(securityProvider.notifier).state = disabled;
-                        saveSecurityToFirestore(ref);
+                        await saveSecurityToFirestore(ref);
                       },
                     ),
                   ));
                 } else {
                   const disabled = SecuritySettings(pinEnabled: false);
                   ref.read(securityProvider.notifier).state = disabled;
-                  saveSecurityToFirestore(ref);
+                  await saveSecurityToFirestore(ref);
                 }
               }
             },
@@ -637,10 +637,10 @@ class _SecurityCard extends ConsumerWidget {
               title: Text(S.lockOnTabSwitch),
               subtitle: Text(S.lockOnTabSwitchDesc),
               value: security.lockOnTabSwitch,
-              onChanged: (v) {
+              onChanged: (v) async {
                 final updated = security.copyWith(lockOnTabSwitch: v);
                 ref.read(securityProvider.notifier).state = updated;
-                saveSecurityToFirestore(ref);
+                await saveSecurityToFirestore(ref);
               },
             ),
             const Divider(height: 1),
@@ -685,11 +685,11 @@ class _SecurityCard extends ConsumerWidget {
                 trailing: isSelected
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
-                onTap: () {
+                onTap: () async {
                   final updated = security.copyWith(autoLockDuration: d);
                   ref.read(securityProvider.notifier).state = updated;
-                  saveSecurityToFirestore(ref);
-                  Navigator.pop(context);
+                  await saveSecurityToFirestore(ref);
+                  if (context.mounted) Navigator.pop(context);
                 },
               );
             }),
