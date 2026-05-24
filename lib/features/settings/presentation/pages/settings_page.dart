@@ -628,17 +628,19 @@ class _SecurityCard extends ConsumerWidget {
               leading: const Icon(Icons.lock_reset),
               title: Text(S.changePin),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(context).push<bool>(MaterialPageRoute(
-                  builder: (_) => PinScreen(
-                    mode: PinMode.confirm,
-                    onSuccess: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const PinScreen(mode: PinMode.change)),
-                    ),
+              onTap: () async {
+                final confirmed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => const PinScreen(mode: PinMode.confirm),
                   ),
-                ));
+                );
+                if (confirmed == true && context.mounted) {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PinScreen(mode: PinMode.change),
+                    ),
+                  );
+                }
               },
             ),
             const Divider(height: 1),
