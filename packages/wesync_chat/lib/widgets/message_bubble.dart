@@ -254,9 +254,13 @@ class _MessageBubbleState extends State<MessageBubble> {
         ));
       }
       final url = m.group(0)!;
+      final uri = Uri.tryParse(url);
+      final isSafe = uri != null &&
+          (uri.scheme == 'http' || uri.scheme == 'https');
       final recognizer = TapGestureRecognizer()
-        ..onTap = () => launchUrl(Uri.parse(url),
-            mode: LaunchMode.externalApplication);
+        ..onTap = isSafe
+            ? () => launchUrl(uri, mode: LaunchMode.externalApplication)
+            : null;
       _recognizers.add(recognizer);
       spans.add(TextSpan(
         text: url,
