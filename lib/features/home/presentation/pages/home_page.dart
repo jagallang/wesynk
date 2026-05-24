@@ -59,9 +59,16 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _checkAutoLock() {
     final security = ref.read(securityProvider);
-    if (!security.pinEnabled) return;
-    if (security.autoLockDuration == AutoLockDuration.off) return;
+    if (!security.pinEnabled || security.pin == null) return;
 
+    // 앱 복귀 시 항상 잠금
+    if (security.lockOnResume) {
+      ref.read(isUnlockedProvider.notifier).state = false;
+      return;
+    }
+
+    // 자동 잠금 시간 체크
+    if (security.autoLockDuration == AutoLockDuration.off) return;
     final elapsed = DateTime.now().difference(_lastActivity).inSeconds;
     if (elapsed >= security.autoLockDuration.seconds) {
       ref.read(isUnlockedProvider.notifier).state = false;

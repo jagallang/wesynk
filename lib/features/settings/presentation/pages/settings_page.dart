@@ -642,6 +642,20 @@ class _SecurityCard extends ConsumerWidget {
               },
             ),
             const Divider(height: 1),
+            // 앱 복귀 시 잠금
+            SwitchListTile(
+              title: Text(S.isKo ? '앱 복귀 시 잠금' : 'Lock on Resume'),
+              subtitle: Text(S.isKo
+                  ? '앱을 다시 열 때 비밀번호 입력'
+                  : 'Require PIN when returning to app'),
+              value: security.lockOnResume,
+              onChanged: (v) async {
+                final updated = security.copyWith(lockOnResume: v);
+                ref.read(securityProvider.notifier).state = updated;
+                await saveSecurityToFirestore(ref);
+              },
+            ),
+            const Divider(height: 1),
             // 탭 전환 시 잠금
             SwitchListTile(
               title: Text(S.lockOnTabSwitch),

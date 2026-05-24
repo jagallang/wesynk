@@ -216,6 +216,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
           pinEnabled: s['pinEnabled'] as bool? ?? true,
           pin: s['pinHash'] as String?,
           lockOnTabSwitch: s['lockOnTabSwitch'] as bool? ?? false,
+          lockOnResume: s['lockOnResume'] as bool? ?? true,
           autoLockDuration: AutoLockDuration.values.firstWhere(
             (d) => d.name == (s['autoLockDuration'] as String?),
             orElse: () => AutoLockDuration.off,

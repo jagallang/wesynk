@@ -24,6 +24,9 @@ class SecuritySettings {
   /// 탭 전환 시 PIN 요구 (강화 모드)
   final bool lockOnTabSwitch;
 
+  /// 앱 복귀 시 항상 잠금
+  final bool lockOnResume;
+
   /// 자동 잠금 시간 (비활동 시)
   final AutoLockDuration autoLockDuration;
 
@@ -31,19 +34,22 @@ class SecuritySettings {
     this.pinEnabled = true,
     this.pin,
     this.lockOnTabSwitch = false,
-    this.autoLockDuration = AutoLockDuration.off,
+    this.lockOnResume = true,
+    this.autoLockDuration = AutoLockDuration.min1,
   });
 
   SecuritySettings copyWith({
     bool? pinEnabled,
     String? pin,
     bool? lockOnTabSwitch,
+    bool? lockOnResume,
     AutoLockDuration? autoLockDuration,
   }) {
     return SecuritySettings(
       pinEnabled: pinEnabled ?? this.pinEnabled,
       pin: pin ?? this.pin,
       lockOnTabSwitch: lockOnTabSwitch ?? this.lockOnTabSwitch,
+      lockOnResume: lockOnResume ?? this.lockOnResume,
       autoLockDuration: autoLockDuration ?? this.autoLockDuration,
     );
   }
@@ -74,6 +80,7 @@ Future<void> saveSecurityToFirestore(WidgetRef ref) async {
     'pinEnabled': security.pinEnabled,
     'pinHash': security.pin,
     'lockOnTabSwitch': security.lockOnTabSwitch,
+    'lockOnResume': security.lockOnResume,
     'autoLockDuration': security.autoLockDuration.name,
   });
 }
