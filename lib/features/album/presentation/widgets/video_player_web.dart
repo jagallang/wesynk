@@ -27,7 +27,7 @@ class _WebVideoPlayerState extends State<_WebVideoPlayer> {
           web.document.createElement('video') as web.HTMLVideoElement;
       video.src = widget.url;
       video.controls = true;
-      video.autoplay = true;
+      video.autoplay = false;
       video.style.width = '100%';
       video.style.height = '100%';
       video.style.backgroundColor = 'black';
