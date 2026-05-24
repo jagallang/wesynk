@@ -203,11 +203,12 @@ class _HomePageState extends ConsumerState<HomePage>
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
             24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(S.addTitle(S.tabTravel),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(S.addTitle(S.tabTravel),
                 style: Theme.of(ctx).textTheme.titleMedium),
             const SizedBox(height: 16),
             TextField(
@@ -249,6 +250,7 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -276,11 +278,12 @@ class _HomePageState extends ConsumerState<HomePage>
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
               24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(S.noteAdd, style: Theme.of(ctx).textTheme.titleMedium),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(S.noteAdd, style: Theme.of(ctx).textTheme.titleMedium),
               const SizedBox(height: 12),
 
               // 태그 선택
@@ -369,6 +372,7 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -425,11 +429,12 @@ class _HomePageState extends ConsumerState<HomePage>
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
               24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(S.dateRecord, style: Theme.of(ctx).textTheme.titleMedium),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(S.dateRecord, style: Theme.of(ctx).textTheme.titleMedium),
               const SizedBox(height: 16),
               TextField(
                 controller: titleCtrl,
@@ -493,6 +498,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 child: Text(S.add),
               ),
             ],
+          ),
           ),
         ),
       ),
