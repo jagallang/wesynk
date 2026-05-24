@@ -93,7 +93,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
-    );
+    ).then((_) => controller.dispose());
   }
 
   @override
@@ -549,7 +549,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
-    );
+    ).then((_) => controller.dispose());
   }
 }
 
@@ -597,14 +597,14 @@ class _SecurityCard extends ConsumerWidget {
                       onSuccess: () {
                         const disabled = SecuritySettings(pinEnabled: false);
                         ref.read(securityProvider.notifier).state = disabled;
-                        saveSecurityToLocal(disabled);
+                        saveSecurityToFirestore(ref);
                       },
                     ),
                   ));
                 } else {
                   const disabled = SecuritySettings(pinEnabled: false);
                   ref.read(securityProvider.notifier).state = disabled;
-                  saveSecurityToLocal(disabled);
+                  saveSecurityToFirestore(ref);
                 }
               }
             },
@@ -637,7 +637,7 @@ class _SecurityCard extends ConsumerWidget {
               onChanged: (v) {
                 final updated = security.copyWith(lockOnTabSwitch: v);
                 ref.read(securityProvider.notifier).state = updated;
-                saveSecurityToLocal(updated);
+                saveSecurityToFirestore(ref);
               },
             ),
             const Divider(height: 1),
@@ -685,7 +685,7 @@ class _SecurityCard extends ConsumerWidget {
                 onTap: () {
                   final updated = security.copyWith(autoLockDuration: d);
                   ref.read(securityProvider.notifier).state = updated;
-                  saveSecurityToLocal(updated);
+                  saveSecurityToFirestore(ref);
                   Navigator.pop(context);
                 },
               );

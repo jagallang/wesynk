@@ -55,19 +55,6 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
   bool _initialized = false;
   bool _initializing = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadLocalSecurity();
-  }
-
-  Future<void> _loadLocalSecurity() async {
-    final settings = await loadSecurityFromLocal();
-    if (mounted) {
-      ref.read(securityProvider.notifier).state = settings;
-    }
-  }
-
   /// 로그인 후 coupleId 결정 + 설정 로드
   Future<void> _initialize() async {
     if (_initializing) return;
@@ -204,6 +191,18 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         ref.read(chatTitleProvider.notifier).state =
             s['chatTitle'] as String;
       }
+      // 보안 설정 로드
+      if (s['pinHash'] != null || s['pinEnabled'] != null) {
+        ref.read(securityProvider.notifier).state = SecuritySettings(
+          pinEnabled: s['pinEnabled'] as bool? ?? true,
+          pin: s['pinHash'] as String?,
+          lockOnTabSwitch: s['lockOnTabSwitch'] as bool? ?? false,
+          autoLockDuration: AutoLockDuration.values.firstWhere(
+            (d) => d.name == (s['autoLockDuration'] as String?),
+            orElse: () => AutoLockDuration.off,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('[AuthGate] loadSettings error: $e');
     }
@@ -211,17 +210,6 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    final security = ref.watch(securityProvider);
-    final isUnlocked = ref.watch(isUnlockedProvider);
-
-    if (security.pinEnabled && !isUnlocked) {
-      // PIN이 아직 설정 안 됐으면 설정 화면, 설정됐으면 잠금 해제 화면
-      if (security.pin == null) {
-        return const PinScreen(mode: PinMode.setup);
-      }
-      return const PinScreen(mode: PinMode.unlock);
-    }
-
     final authState = ref.watch(authStateProvider);
     return authState.when(
       loading: () => const Scaffold(
@@ -241,6 +229,15 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
+        }
+        // PIN 체크 (Firestore 로드 완료 후)
+        final security = ref.watch(securityProvider);
+        final isUnlocked = ref.watch(isUnlockedProvider);
+        if (security.pinEnabled && !isUnlocked) {
+          if (security.pin == null) {
+            return const PinScreen(mode: PinMode.setup);
+          }
+          return const PinScreen(mode: PinMode.unlock);
         }
         return const HomePage();
       },

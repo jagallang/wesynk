@@ -71,7 +71,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   void _handleUnlock() {
     final security = ref.read(securityProvider);
-    if (_input == security.pin) {
+    if (hashPin(_input) == security.pin) {
       ref.read(isUnlockedProvider.notifier).state = true;
       widget.onSuccess?.call();
     } else {
@@ -82,7 +82,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
     }
   }
 
-  void _handleSetup() {
+  Future<void> _handleSetup() async {
     if (_firstPin == null) {
       setState(() {
         _firstPin = _input;
@@ -91,11 +91,12 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       });
     } else {
       if (_input == _firstPin) {
+        final pinHashed = hashPin(_input);
         final newSettings =
-            ref.read(securityProvider).copyWith(pinEnabled: true, pin: _input);
+            ref.read(securityProvider).copyWith(pinEnabled: true, pin: pinHashed);
         ref.read(securityProvider.notifier).state = newSettings;
         ref.read(isUnlockedProvider.notifier).state = true;
-        saveSecurityToLocal(newSettings);
+        await saveSecurityToFirestore(ref);
         widget.onSuccess?.call();
         if (mounted && Navigator.of(context).canPop()) {
           Navigator.of(context).pop(true);
@@ -113,7 +114,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   void _handleConfirm() {
     final security = ref.read(securityProvider);
-    if (_input == security.pin) {
+    if (hashPin(_input) == security.pin) {
       widget.onSuccess?.call();
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);

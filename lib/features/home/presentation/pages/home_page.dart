@@ -119,14 +119,18 @@ class _HomePageState extends ConsumerState<HomePage>
             myNickname: ref.watch(myNicknameProvider),
             partnerNickname: ref.watch(partnerNicknameProvider),
             chatTitle: ref.watch(chatTitleProvider),
-            onChatTitleChanged: (title) {
+            onChatTitleChanged: (title) async {
               ref.read(chatTitleProvider.notifier).state = title;
-              final coupleId = ref.read(coupleIdProvider);
-              final service = ref.read(firestoreServiceProvider);
-              service.saveSettings(
-                coupleId: coupleId,
-                settings: {'chatTitle': title},
-              );
+              try {
+                final coupleId = ref.read(coupleIdProvider);
+                final service = ref.read(firestoreServiceProvider);
+                await service.saveSettings(
+                  coupleId: coupleId,
+                  settings: {'chatTitle': title},
+                );
+              } catch (e) {
+                debugPrint('[HomePage] chatTitle save error: $e');
+              }
             },
             onPickPhoto: () => _pickPhotoForChat(),
             onOpenAppSettings: () => Navigator.of(context).push(
