@@ -111,6 +111,11 @@ final selectedAppIconProvider = StateProvider<String?>((ref) => null);
 /// 채팅방 타이틀 (null = 기본값 '우리')
 final chatTitleProvider = StateProvider<String?>((ref) => null);
 
+/// 알림 설정
+final notifChatProvider = StateProvider<bool>((ref) => true);
+final notifCalendarProvider = StateProvider<bool>((ref) => true);
+final notifAlbumProvider = StateProvider<bool>((ref) => true);
+
 /// 프리셋 배경 색상
 const presetBackgrounds = <({String name, Color color})>[
   (name: '웜크림', color: Color(0xFFFFFBF8)),

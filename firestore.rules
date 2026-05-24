@@ -35,6 +35,13 @@ service cloud.firestore {
       }
     }
 
+    // users — FCM 토큰 저장
+    match /users/{userId} {
+      match /tokens/{tokenId} {
+        allow read, write: if isAuth() && request.auth.uid == userId;
+      }
+    }
+
     // pairing — 본인 이메일 문서만 생성/삭제
     match /pairing/{email} {
       allow read: if isAuth();

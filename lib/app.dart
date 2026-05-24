@@ -12,6 +12,7 @@ import 'features/home/presentation/pages/home_page.dart';
 import 'features/home/presentation/providers/home_providers.dart';
 import 'features/security/presentation/pages/pin_screen.dart';
 import 'features/security/presentation/providers/security_provider.dart';
+import 'core/services/fcm_service.dart';
 
 class WesynkApp extends ConsumerWidget {
   const WesynkApp({super.key});
@@ -66,6 +67,24 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
       debugPrint('[AuthGate] _initCoupleId done. coupleId=${ref.read(coupleIdProvider)}');
       await _loadSavedSettings();
       debugPrint('[AuthGate] _loadSavedSettings done.');
+      // FCM 초기화
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final fcm = FcmService();
+        await fcm.initialize(uid);
+        fcm.onForegroundMessage((message) {
+          final title = message.notification?.title;
+          final body = message.notification?.body;
+          if (title != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title: $body'),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        });
+      }
     } catch (e, stack) {
       debugPrint('[AuthGate] initialize error: $e\n$stack');
     }
@@ -202,6 +221,18 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
             orElse: () => AutoLockDuration.off,
           ),
         );
+      }
+      // 알림 설정 로드
+      if (s['notif_chat'] != null) {
+        ref.read(notifChatProvider.notifier).state = s['notif_chat'] as bool;
+      }
+      if (s['notif_calendar'] != null) {
+        ref.read(notifCalendarProvider.notifier).state =
+            s['notif_calendar'] as bool;
+      }
+      if (s['notif_album'] != null) {
+        ref.read(notifAlbumProvider.notifier).state =
+            s['notif_album'] as bool;
       }
     } catch (e) {
       debugPrint('[AuthGate] loadSettings error: $e');

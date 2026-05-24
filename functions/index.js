@@ -1,7 +1,9 @@
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { getStorage } = require("firebase-admin/storage");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
 const sharp = require("sharp");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
@@ -228,3 +230,147 @@ function cleanupTemp(filePath) {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   } catch (_) {}
 }
+
+// ─── 푸시 알림 ───
+
+/**
+ * 상대방의 FCM 토큰 목록 가져오기
+ */
+async function getPartnerTokens(coupleId, senderUid) {
+  const db = getFirestore();
+  const coupleDoc = await db.collection("couples").doc(coupleId).get();
+  if (!coupleDoc.exists) return [];
+
+  const members = coupleDoc.data().members || [];
+  const partnerUid = members.find((uid) => uid !== senderUid);
+  if (!partnerUid) return [];
+
+  const tokenSnap = await db
+    .collection("users")
+    .doc(partnerUid)
+    .collection("tokens")
+    .get();
+
+  return tokenSnap.docs.map((d) => d.data().token).filter(Boolean);
+}
+
+/**
+ * 알림 설정 확인 (couples/{coupleId} 문서의 settings 필드)
+ */
+async function isNotifEnabled(coupleId, type) {
+  const db = getFirestore();
+  const coupleDoc = await db.collection("couples").doc(coupleId).get();
+  if (!coupleDoc.exists) return true;
+  const settings = coupleDoc.data().settings || {};
+  const key = `notif_${type}`;
+  return settings[key] !== false; // 기본값 true
+}
+
+/**
+ * FCM 메시지 전송 (만료 토큰 자동 정리)
+ */
+async function sendFcm(tokens, notification, data) {
+  if (tokens.length === 0) return;
+
+  const messaging = getMessaging();
+  const results = await Promise.allSettled(
+    tokens.map((token) =>
+      messaging.send({
+        token,
+        notification,
+        data,
+        webpush: {
+          notification: {
+            icon: "/icons/Icon-192.png",
+          },
+        },
+      })
+    )
+  );
+
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.warn(`[FCM] Failed to send to token: ${tokens[i].substring(0, 20)}...`, r.reason?.code);
+    }
+  });
+}
+
+/**
+ * 채팅 메시지 알림
+ */
+exports.onNewMessage = onDocumentCreated(
+  {
+    document: "couples/{coupleId}/messages/{messageId}",
+    region: "asia-northeast3",
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const coupleId = event.params.coupleId;
+    const senderUid = data.senderId;
+
+    if (!(await isNotifEnabled(coupleId, "chat"))) return;
+
+    const tokens = await getPartnerTokens(coupleId, senderUid);
+    const body = data.imageUrl
+      ? "📷 사진을 보냈습니다"
+      : data.body || "새 메시지";
+
+    await sendFcm(
+      tokens,
+      { title: "WeSync", body },
+      { type: "chat", coupleId }
+    );
+    console.log(`[FCM] chat notification sent to ${tokens.length} devices`);
+  }
+);
+
+/**
+ * 캘린더 일정 알림
+ */
+exports.onNewItem = onDocumentCreated(
+  {
+    document: "couples/{coupleId}/items/{itemId}",
+    region: "asia-northeast3",
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const coupleId = event.params.coupleId;
+    const senderUid = data.createdBy;
+    const type = data.type; // event, note, date, photo
+
+    // 사진은 별도 트리거 없이 items로 통합
+    if (type === "photo") {
+      if (!(await isNotifEnabled(coupleId, "album"))) return;
+      const tokens = await getPartnerTokens(coupleId, senderUid);
+      await sendFcm(
+        tokens,
+        { title: "WeSync", body: "📷 새 사진이 추가되었습니다" },
+        { type: "album", coupleId }
+      );
+      console.log(`[FCM] album notification sent to ${tokens.length} devices`);
+      return;
+    }
+
+    if (!(await isNotifEnabled(coupleId, "calendar"))) return;
+
+    const payload = data.payload || {};
+    const title = payload.title || payload.body || "";
+    const labels = {
+      event: "📅 새 일정",
+      note: "📝 새 메모",
+      date: "💑 데이트 기록",
+    };
+
+    const tokens = await getPartnerTokens(coupleId, senderUid);
+    await sendFcm(
+      tokens,
+      { title: "WeSync", body: `${labels[type] || "📋 새 항목"}: ${title}` },
+      { type: "calendar", coupleId }
+    );
+    console.log(`[FCM] calendar notification sent to ${tokens.length} devices`);
+  }
+);

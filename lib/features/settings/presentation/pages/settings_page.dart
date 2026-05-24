@@ -462,6 +462,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             const SizedBox(height: 24),
           ],
 
+          // ─── 알림 ───
+          Text(S.isKo ? '알림' : 'Notifications',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          _NotificationCard(),
+          const SizedBox(height: 24),
+
           // ─── 보안 ───
           Text(S.security,
               style: Theme.of(context)
@@ -1133,6 +1143,60 @@ class _ColorPickerTile extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NotificationCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chatOn = ref.watch(notifChatProvider);
+    final calendarOn = ref.watch(notifCalendarProvider);
+    final albumOn = ref.watch(notifAlbumProvider);
+
+    void save(String key, bool value) {
+      final coupleId = ref.read(coupleIdProvider);
+      final service = ref.read(firestoreServiceProvider);
+      service.saveSettings(coupleId: coupleId, settings: {key: value});
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.chat_bubble_outline),
+            title: Text(S.isKo ? '채팅 알림' : 'Chat Notifications'),
+            subtitle: Text(S.isKo ? '새 메시지 수신 시 알림' : 'Notify on new messages'),
+            value: chatOn,
+            onChanged: (v) {
+              ref.read(notifChatProvider.notifier).state = v;
+              save('notif_chat', v);
+            },
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.calendar_month_outlined),
+            title: Text(S.isKo ? '캘린더 알림' : 'Calendar Notifications'),
+            subtitle: Text(S.isKo ? '새 일정/메모 추가 시 알림' : 'Notify on new events'),
+            value: calendarOn,
+            onChanged: (v) {
+              ref.read(notifCalendarProvider.notifier).state = v;
+              save('notif_calendar', v);
+            },
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.photo_library_outlined),
+            title: Text(S.isKo ? '앨범 알림' : 'Album Notifications'),
+            subtitle: Text(S.isKo ? '새 사진 업로드 시 알림' : 'Notify on new photos'),
+            value: albumOn,
+            onChanged: (v) {
+              ref.read(notifAlbumProvider.notifier).state = v;
+              save('notif_album', v);
+            },
+          ),
+        ],
       ),
     );
   }
