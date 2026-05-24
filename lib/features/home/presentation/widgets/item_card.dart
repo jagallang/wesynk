@@ -18,13 +18,22 @@ class ItemCard extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final myUid = FirebaseAuth.instance.currentUser?.uid;
-    final eventColor = (item.createdBy == myUid || item.createdBy == 'me')
+    final isMine = item.createdBy == myUid || item.createdBy == 'me';
+    final eventColor = isMine
         ? ref.watch(myEventColorProvider)
         : ref.watch(partnerEventColorProvider);
+    final nickname = isMine
+        ? (ref.watch(myNicknameProvider).isEmpty
+            ? (S.isKo ? '나' : 'Me')
+            : ref.watch(myNicknameProvider))
+        : (ref.watch(partnerNicknameProvider).isEmpty
+            ? (S.isKo ? '상대방' : 'Partner')
+            : ref.watch(partnerNicknameProvider));
 
     // 일기(note)는 일기장 스타일 카드
     if (item.type == ItemType.note) {
-      return _buildNoteCard(context, ref, payload, theme, eventColor);
+      return _buildNoteCard(
+          context, ref, payload, theme, eventColor, nickname, isMine);
     }
 
     return Card(
@@ -55,13 +64,27 @@ class ItemCard extends ConsumerWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: _buildContent(payload, theme),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nickname,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: eventColor,
+                      ),
+                    ),
+                    _buildContent(payload, theme),
+                  ],
+                ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.more_vert, size: 20),
-              onPressed: () => _showActions(context, ref),
-            ),
+            if (isMine)
+              IconButton(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onPressed: () => _showActions(context, ref),
+              ),
           ],
         ),
       ),
@@ -138,7 +161,8 @@ class ItemCard extends ConsumerWidget {
   }
 
   Widget _buildNoteCard(BuildContext context, WidgetRef ref,
-      Map<String, dynamic> payload, ThemeData theme, Color eventColor) {
+      Map<String, dynamic> payload, ThemeData theme, Color eventColor,
+      String nickname, bool isMine) {
     final body = payload['body']?.toString() ?? '';
     final mood = payload['mood']?.toString() ?? '📝';
     final tag = payload['tag']?.toString() ?? '';
@@ -162,14 +186,18 @@ class ItemCard extends ConsumerWidget {
             mood: mood,
             body: body,
             eventColor: eventColor,
+            nickname: nickname,
+            isMine: isMine,
             theme: theme,
-            onLongPress: () => _showActions(context, ref),
-            onEdit: () => _showEditForm(context, ref),
-            onDelete: () {
-              final service = ref.read(firestoreServiceProvider);
-              final coupleId = ref.read(coupleIdProvider);
-              service.deleteItem(coupleId: coupleId, itemId: item.id);
-            },
+            onLongPress: isMine ? () => _showActions(context, ref) : null,
+            onEdit: isMine ? () => _showEditForm(context, ref) : null,
+            onDelete: isMine
+                ? () {
+                    final service = ref.read(firestoreServiceProvider);
+                    final coupleId = ref.read(coupleIdProvider);
+                    service.deleteItem(coupleId: coupleId, itemId: item.id);
+                  }
+                : null,
           );
         },
       ),
@@ -478,10 +506,12 @@ class _NoteExpandableCard extends StatefulWidget {
   final String mood;
   final String body;
   final Color eventColor;
+  final String nickname;
+  final bool isMine;
   final ThemeData theme;
-  final VoidCallback onLongPress;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _NoteExpandableCard({
     required this.item,
@@ -490,10 +520,12 @@ class _NoteExpandableCard extends StatefulWidget {
     required this.mood,
     required this.body,
     required this.eventColor,
+    required this.nickname,
+    required this.isMine,
     required this.theme,
-    required this.onLongPress,
-    required this.onEdit,
-    required this.onDelete,
+    this.onLongPress,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -514,6 +546,16 @@ class _NoteExpandableCardState extends State<_NoteExpandableCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 작성자 닉네임
+            Text(
+              widget.nickname,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: widget.eventColor,
+              ),
+            ),
+            const SizedBox(height: 4),
             // 헤더: 태그 + 제목 + 감정 + 날짜
             Row(
               children: [
@@ -585,27 +627,29 @@ class _NoteExpandableCardState extends State<_NoteExpandableCard> {
                       widget.theme.textTheme.bodyMedium?.copyWith(height: 1.6),
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: widget.onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: Text(S.isKo ? '수정' : 'Edit',
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: widget.onDelete,
-                    icon: const Icon(Icons.delete_outline,
-                        size: 16, color: Colors.red),
-                    label: Text(S.isKo ? '삭제' : 'Delete',
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.red)),
-                  ),
-                ],
-              ),
+              if (widget.isMine) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: widget.onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: Text(S.isKo ? '수정' : 'Edit',
+                          style: const TextStyle(fontSize: 13)),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: widget.onDelete,
+                      icon: const Icon(Icons.delete_outline,
+                          size: 16, color: Colors.red),
+                      label: Text(S.isKo ? '삭제' : 'Delete',
+                          style:
+                              const TextStyle(fontSize: 13, color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ],
         ),
