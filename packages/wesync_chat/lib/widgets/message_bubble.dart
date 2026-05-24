@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_strings.dart';
 import '../models/message.dart';
 
@@ -68,6 +70,50 @@ class MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (message.replyTo != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isMine
+                            ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                            : theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border(
+                          left: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            message.replyTo!.senderId == message.senderId
+                                ? (CS.isKo ? '나' : 'Me')
+                                : (senderName ?? (CS.isKo ? '상대방' : 'Partner')),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            message.replyTo!.imageUrl != null
+                                ? (CS.isKo ? '📷 사진' : '📷 Photo')
+                                : message.replyTo!.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (message.hasImage)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
@@ -91,8 +137,7 @@ class MessageBubble extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (message.body.isNotEmpty)
-                    Text(message.body, style: TextStyle(fontSize: fontSize)),
+                  if (message.body.isNotEmpty) _buildBody(context),
                   const SizedBox(height: 2),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -146,6 +191,52 @@ class MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static final _urlRegex = RegExp(
+    r'https?://[^\s<>\"\)]+',
+    caseSensitive: false,
+  );
+
+  Widget _buildBody(BuildContext context) {
+    final text = message.body;
+    final matches = _urlRegex.allMatches(text).toList();
+
+    if (matches.isEmpty) {
+      return Text(text, style: TextStyle(fontSize: fontSize));
+    }
+
+    final spans = <InlineSpan>[];
+    var lastEnd = 0;
+    for (final m in matches) {
+      if (m.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, m.start),
+          style: TextStyle(fontSize: fontSize),
+        ));
+      }
+      final url = m.group(0)!;
+      spans.add(TextSpan(
+        text: url,
+        style: TextStyle(
+          fontSize: fontSize,
+          color: Colors.blue,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () => launchUrl(Uri.parse(url),
+              mode: LaunchMode.externalApplication),
+      ));
+      lastEnd = m.end;
+    }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: TextStyle(fontSize: fontSize),
+      ));
+    }
+
+    return RichText(text: TextSpan(children: spans));
   }
 }
 

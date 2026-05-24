@@ -45,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _refreshTimer;
   ChatSettings _chatSettings = const ChatSettings();
   DateTime? _clearBefore;
+  Message? _replyingTo;
 
   @override
   void initState() {
@@ -252,8 +253,11 @@ class _ChatScreenState extends State<ChatScreen> {
           MessageInput(
             defaultEphemeral: _chatSettings.defaultEphemeral,
             defaultLifetime: _chatSettings.defaultLifetime,
-            onSend: (body, lifetime, {imageUrl}) async {
-              await _service.send(body, lifetime: lifetime, imageUrl: imageUrl);
+            replyingTo: _replyingTo,
+            onCancelReply: () => setState(() => _replyingTo = null),
+            onSend: (body, lifetime, {imageUrl, replyTo}) async {
+              await _service.send(body,
+                  lifetime: lifetime, imageUrl: imageUrl, replyTo: replyTo);
             },
             onClear: () {
               final now = DateTime.now();
@@ -308,6 +312,14 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const Divider(),
+            ListTile(
+              leading: const Icon(Icons.reply),
+              title: Text(CS.isKo ? '답장' : 'Reply'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _replyingTo = msg);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.copy),
               title: Text(CS.copy),

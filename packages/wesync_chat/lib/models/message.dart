@@ -1,5 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class ReplyTo {
+  final String id;
+  final String body;
+  final String senderId;
+  final String? imageUrl;
+
+  const ReplyTo({
+    required this.id,
+    required this.body,
+    required this.senderId,
+    this.imageUrl,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'body': body,
+        'senderId': senderId,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+      };
+
+  factory ReplyTo.fromMap(Map<String, dynamic> m) => ReplyTo(
+        id: m['id'] as String? ?? '',
+        body: m['body'] as String? ?? '',
+        senderId: m['senderId'] as String? ?? '',
+        imageUrl: m['imageUrl'] as String?,
+      );
+}
+
 class Message {
   final String id;
   final String senderId;
@@ -10,6 +38,7 @@ class Message {
   final DateTime? hideAfter;
   final DateTime? editedAt;
   final String? imageUrl;
+  final ReplyTo? replyTo;
 
   Message({
     required this.id,
@@ -21,6 +50,7 @@ class Message {
     this.hideAfter,
     this.editedAt,
     this.imageUrl,
+    this.replyTo,
   });
 
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
@@ -42,6 +72,9 @@ class Message {
       hideAfter: (d['hideAfter'] as Timestamp?)?.toDate(),
       editedAt: (d['editedAt'] as Timestamp?)?.toDate(),
       imageUrl: d['imageUrl'] as String?,
+      replyTo: d['replyTo'] != null
+          ? ReplyTo.fromMap(Map<String, dynamic>.from(d['replyTo'] as Map))
+          : null,
     );
   }
 
@@ -56,6 +89,7 @@ class Message {
       'hideAfter': hideAfter == null ? null : Timestamp.fromDate(hideAfter!),
       'editedAt': editedAt == null ? null : Timestamp.fromDate(editedAt!),
       if (imageUrl != null) 'imageUrl': imageUrl,
+      if (replyTo != null) 'replyTo': replyTo!.toMap(),
     };
   }
 
@@ -75,6 +109,7 @@ class Message {
       hideAfter: hideAfter ?? this.hideAfter,
       editedAt: editedAt ?? this.editedAt,
       imageUrl: imageUrl,
+      replyTo: replyTo,
     );
   }
 
