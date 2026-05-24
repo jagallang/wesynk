@@ -239,11 +239,11 @@ function cleanupTemp(filePath) {
 async function getPartnerTokens(coupleId, senderUid) {
   const db = getFirestore();
   const coupleDoc = await db.collection("couples").doc(coupleId).get();
-  if (!coupleDoc.exists) return [];
+  if (!coupleDoc.exists) return { tokens: [], partnerUid: null };
 
   const members = coupleDoc.data().members || [];
   const partnerUid = members.find((uid) => uid !== senderUid);
-  if (!partnerUid) return [];
+  if (!partnerUid) return { tokens: [], partnerUid: null };
 
   const tokenSnap = await db
     .collection("users")
@@ -251,7 +251,8 @@ async function getPartnerTokens(coupleId, senderUid) {
     .collection("tokens")
     .get();
 
-  return tokenSnap.docs.map((d) => d.data().token).filter(Boolean);
+  const tokens = tokenSnap.docs.map((d) => d.data().token).filter(Boolean);
+  return { tokens, partnerUid };
 }
 
 /**
@@ -269,7 +270,7 @@ async function isNotifEnabled(coupleId, type) {
 /**
  * FCM 메시지 전송 (만료 토큰 자동 정리)
  */
-async function sendFcm(tokens, notification, data) {
+async function sendFcm(tokens, notification, data, partnerUid) {
   if (tokens.length === 0) return;
 
   const messaging = getMessaging();
@@ -288,11 +289,34 @@ async function sendFcm(tokens, notification, data) {
     )
   );
 
-  results.forEach((r, i) => {
+  // 만료/무효 토큰 자동 삭제
+  const db = getFirestore();
+  const invalidCodes = [
+    "messaging/registration-token-not-registered",
+    "messaging/invalid-registration-token",
+    "messaging/mismatched-credential",
+  ];
+
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
     if (r.status === "rejected") {
-      console.warn(`[FCM] Failed to send to token: ${tokens[i].substring(0, 20)}...`, r.reason?.code);
+      const code = r.reason?.code || "";
+      console.warn(`[FCM] Failed: ${tokens[i].substring(0, 20)}... (${code})`);
+      if (partnerUid && invalidCodes.includes(code)) {
+        const tokenHash = tokens[i].hashCode;
+        const tokenSnap = await db
+          .collection("users")
+          .doc(partnerUid)
+          .collection("tokens")
+          .where("token", "==", tokens[i])
+          .get();
+        for (const doc of tokenSnap.docs) {
+          await doc.ref.delete();
+          console.log(`[FCM] Deleted invalid token: ${doc.id}`);
+        }
+      }
     }
-  });
+  }
 }
 
 /**
@@ -312,7 +336,7 @@ exports.onNewMessage = onDocumentCreated(
 
     if (!(await isNotifEnabled(coupleId, "chat"))) return;
 
-    const tokens = await getPartnerTokens(coupleId, senderUid);
+    const { tokens, partnerUid } = await getPartnerTokens(coupleId, senderUid);
     const body = data.imageUrl
       ? "📷 사진을 보냈습니다"
       : data.body || "새 메시지";
@@ -320,7 +344,8 @@ exports.onNewMessage = onDocumentCreated(
     await sendFcm(
       tokens,
       { title: "WeSync", body },
-      { type: "chat", coupleId }
+      { type: "chat", coupleId },
+      partnerUid
     );
     console.log(`[FCM] chat notification sent to ${tokens.length} devices`);
   }
@@ -345,11 +370,12 @@ exports.onNewItem = onDocumentCreated(
     // 사진은 별도 트리거 없이 items로 통합
     if (type === "photo") {
       if (!(await isNotifEnabled(coupleId, "album"))) return;
-      const tokens = await getPartnerTokens(coupleId, senderUid);
+      const { tokens, partnerUid } = await getPartnerTokens(coupleId, senderUid);
       await sendFcm(
         tokens,
         { title: "WeSync", body: "📷 새 사진이 추가되었습니다" },
-        { type: "album", coupleId }
+        { type: "album", coupleId },
+        partnerUid
       );
       console.log(`[FCM] album notification sent to ${tokens.length} devices`);
       return;
@@ -365,11 +391,12 @@ exports.onNewItem = onDocumentCreated(
       date: "💑 데이트 기록",
     };
 
-    const tokens = await getPartnerTokens(coupleId, senderUid);
+    const { tokens, partnerUid } = await getPartnerTokens(coupleId, senderUid);
     await sendFcm(
       tokens,
       { title: "WeSync", body: `${labels[type] || "📋 새 항목"}: ${title}` },
-      { type: "calendar", coupleId }
+      { type: "calendar", coupleId },
+      partnerUid
     );
     console.log(`[FCM] calendar notification sent to ${tokens.length} devices`);
   }
