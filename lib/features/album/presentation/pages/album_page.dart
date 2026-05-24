@@ -493,12 +493,34 @@ class _PhotoThumbState extends State<_PhotoThumb> {
       );
     }
 
-    // 영상: 썸네일 준비됐으면 썸네일 표시, 아니면 아이콘
-    if (widget.photo.isVideo && !widget.photo.thumbnailReady) {
+    // 영상: 재생 아이콘 + 파일명 표시
+    if (widget.photo.isVideo) {
+      final fileName = widget.photo.storagePath.split('/').last;
+      final title = fileName.length > 15
+          ? '${fileName.substring(0, 12)}...'
+          : fileName;
       return Container(
         color: Colors.grey.shade800,
-        child: const Center(
-          child: Icon(Icons.videocam, size: 32, color: Colors.white54),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.play_circle_outline,
+                  size: 36, color: Colors.white70),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                      color: Colors.white60, fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
