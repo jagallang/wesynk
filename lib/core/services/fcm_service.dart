@@ -67,5 +67,5 @@ class FcmService {
   }
 
   // Firebase Console > 프로젝트 설정 > Cloud Messaging > 웹 푸시 인증서 키
-  static const _vapidKey = '';  // TODO: Firebase Console에서 VAPID 키 입력
+  static const _vapidKey = 'BMUNCjLBS6APkD1YS1XlRtSPMHMrV-1TZS2PbscsLAj5egfJexRfU_1bl6_z2fCo04_O-y8tR_cv_IHoDBoJYKA';
 }
