@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dynamic_icon/flutter_dynamic_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -743,23 +744,41 @@ class _PartnerCard extends ConsumerStatefulWidget {
 }
 
 class _PartnerCardState extends ConsumerState<_PartnerCard> {
-  final _myEmailCtrl = TextEditingController();
-  final _partnerEmailCtrl = TextEditingController();
-  final _codeCtrl = TextEditingController();
   bool _loading = false;
-  bool _registered = false;
-  String? _codeError;
+  String? _inviteLink;
 
-  @override
-  void dispose() {
-    _myEmailCtrl.dispose();
-    _partnerEmailCtrl.dispose();
-    _codeCtrl.dispose();
-    super.dispose();
+  Future<void> _createInvite() async {
+    setState(() => _loading = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final coupleId = ref.read(coupleIdProvider);
+      final service = ref.read(firestoreServiceProvider);
+      final code = await service.createInvite(
+        uid: user.uid,
+        coupleId: coupleId,
+        email: user.email ?? '',
+      );
+      setState(() {
+        _inviteLink = 'https://wesynk-app.web.app/?invite=$code';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${S.error}: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w\.\-]+@[\w\.\-]+\.\w+$').hasMatch(email);
+  void _copyLink() {
+    if (_inviteLink == null) return;
+    Clipboard.setData(ClipboardData(text: _inviteLink!));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(S.isKo ? '초대 링크가 복사되었습니다' : 'Invite link copied')),
+    );
   }
 
   @override
@@ -772,7 +791,6 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 헤더
             Row(
               children: [
                 CircleAvatar(
@@ -789,7 +807,10 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                       Text(S.partner,
                           style:
                               const TextStyle(fontWeight: FontWeight.w600)),
-                      Text(S.partnerPlaceholder,
+                      Text(
+                          S.isKo
+                              ? '초대 링크로 파트너를 연결하세요'
+                              : 'Connect your partner with an invite link',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade600)),
                     ],
@@ -797,67 +818,20 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(S.pairingDesc,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
             const SizedBox(height: 16),
 
-            if (!_registered) ...[
-              // 내 이메일
-              TextField(
-                controller: _myEmailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: S.myEmail,
-                  hintText: 'me@gmail.com',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  isDense: true,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-
-              // 파트너 이메일
-              TextField(
-                controller: _partnerEmailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: S.partnerEmail,
-                  hintText: S.partnerEmailHint,
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.person_add_outlined),
-                  isDense: true,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-
-              // 페어링 코드
-              TextField(
-                controller: _codeCtrl,
-                decoration: InputDecoration(
-                  labelText: S.isKo ? '페어링 코드' : 'Pairing Code',
-                  hintText: S.isKo ? '파트너와 약속한 코드' : 'Shared secret code',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  isDense: true,
-                  errorText: _codeError,
-                ),
-                onChanged: (_) => setState(() => _codeError = null),
+            if (_inviteLink == null) ...[
+              Text(
+                S.isKo
+                    ? '초대 링크를 생성해서 파트너에게 보내주세요.\n파트너가 링크를 클릭하면 자동으로 연결됩니다.'
+                    : 'Create an invite link and share it with your partner.\nThey will be connected automatically.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 16),
-
-              // 페어링 등록 버튼
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _loading ||
-                          !_isValidEmail(_myEmailCtrl.text.trim()) ||
-                          !_isValidEmail(_partnerEmailCtrl.text.trim()) ||
-                          _codeCtrl.text.trim().isEmpty
-                      ? null
-                      : _register,
+                  onPressed: _loading ? null : _createInvite,
                   icon: _loading
                       ? const SizedBox(
                           width: 16,
@@ -865,154 +839,72 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.link),
-                  label: Text(S.requestPairing),
+                  label: Text(
+                      S.isKo ? '초대 링크 생성' : 'Create Invite Link'),
                 ),
               ),
             ] else ...[
-              // 등록 완료 → 매칭 대기/완료 상태 표시
-              _PairingStatusView(
-                myEmail: _myEmailCtrl.text.trim().toLowerCase(),
-                partnerEmail: _partnerEmailCtrl.text.trim().toLowerCase(),
-                onMatched: (coupleId) {
-                  ref.read(coupleIdProvider.notifier).state = coupleId;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(S.pairingSuccess)),
-                  );
-                },
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        size: 32, color: Colors.green),
+                    const SizedBox(height: 8),
+                    Text(
+                      S.isKo ? '초대 링크가 생성되었습니다' : 'Invite link created',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _inviteLink!,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      S.isKo ? '24시간 후 만료됩니다' : 'Expires in 24 hours',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade400),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _copyLink,
+                            icon: const Icon(Icons.copy, size: 16),
+                            label: Text(S.isKo ? '링크 복사' : 'Copy'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              _inviteLink = null;
+                              _createInvite();
+                            },
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: Text(S.isKo ? '새로 생성' : 'New Link'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
         ),
       ),
-    );
-  }
-
-  Future<void> _register() async {
-    setState(() => _loading = true);
-    try {
-      final coupleId = ref.read(coupleIdProvider);
-      final service = ref.read(firestoreServiceProvider);
-      final code = _codeCtrl.text.trim();
-      if (code.isEmpty) {
-        setState(() => _codeError = S.isKo ? '코드를 입력하세요' : 'Enter a code');
-        return;
-      }
-
-      final matchedId = await service.registerForPairing(
-        myEmail: _myEmailCtrl.text.trim(),
-        myUid: FirebaseAuth.instance.currentUser!.uid,
-        partnerEmail: _partnerEmailCtrl.text.trim(),
-        coupleId: coupleId,
-        pairingCode: code,
-      );
-
-      setState(() => _registered = true);
-
-      if (matchedId != null && mounted) {
-        ref.read(coupleIdProvider.notifier).state = matchedId;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(S.pairingSuccess)),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.isKo
-                ? '파트너의 등록을 기다리는 중...'
-                : 'Waiting for partner...'),
-          ),
-        );
-      }
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-}
-
-/// 페어링 상태 실시간 감시 (등록 후 매칭 대기/완료)
-class _PairingStatusView extends ConsumerWidget {
-  final String myEmail;
-  final String partnerEmail;
-  final ValueChanged<String> onMatched;
-
-  const _PairingStatusView({
-    required this.myEmail,
-    required this.partnerEmail,
-    required this.onMatched,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final service = ref.read(firestoreServiceProvider);
-    final theme = Theme.of(context);
-
-    return StreamBuilder<Map<String, dynamic>?>(
-      stream: service.pairingStatusStream(myEmail),
-      builder: (context, snap) {
-        final data = snap.data;
-        final matched = data?['matched'] == true;
-        final matchedCoupleId = data?['matchedCoupleId'] as String?;
-
-        if (matched && matchedCoupleId != null) {
-          // 매칭 완료 → coupleId 업데이트
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            onMatched(matchedCoupleId);
-          });
-
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.shade300),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.check_circle, size: 40, color: Colors.green),
-                const SizedBox(height: 8),
-                Text(S.partnerConnected,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(partnerEmail,
-                    style: TextStyle(color: theme.colorScheme.primary)),
-              ],
-            ),
-          );
-        }
-
-        // 매칭 대기 중
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              const Icon(Icons.hourglass_top, size: 32),
-              const SizedBox(height: 8),
-              Text(S.pairingPending,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600)),
-              const SizedBox(height: 4),
-              Text(partnerEmail,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary)),
-              const SizedBox(height: 8),
-              Text(
-                S.isKo
-                    ? '파트너도 같은 방법으로 이메일을 등록하면 자동 연결됩니다'
-                    : 'Your partner also needs to register emails the same way',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

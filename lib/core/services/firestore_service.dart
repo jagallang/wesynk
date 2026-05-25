@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -354,5 +355,85 @@ class FirestoreService {
         await _db.collection('pairing').doc(partnerEmail).delete();
       }
     }
+  }
+
+  // ─── 초대 링크 ───
+
+  /// 초대 코드 생성 (8자리 영숫자)
+  String _generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    final rng = Random.secure();
+    return List.generate(8, (_) => chars[rng.nextInt(chars.length)]).join();
+  }
+
+  /// 초대 링크 생성 → invite/{code} 문서 저장
+  Future<String> createInvite({
+    required String uid,
+    required String coupleId,
+    required String email,
+  }) async {
+    final code = _generateCode();
+    final now = DateTime.now();
+    await _db.collection('invites').doc(code).set({
+      'hostUid': uid,
+      'hostEmail': email,
+      'coupleId': coupleId,
+      'createdAt': Timestamp.fromDate(now),
+      'expiresAt': Timestamp.fromDate(now.add(const Duration(hours: 24))),
+      'used': false,
+    });
+    debugPrint('[FirestoreService] invite created: $code');
+    return code;
+  }
+
+  /// 초대 수락 → couples.members에 추가 → coupleId 반환
+  Future<String?> acceptInvite({
+    required String code,
+    required String myUid,
+    required String myEmail,
+  }) async {
+    final doc = await _db.collection('invites').doc(code).get();
+    if (!doc.exists) {
+      debugPrint('[FirestoreService] invite not found: $code');
+      return null;
+    }
+
+    final data = doc.data()!;
+    final used = data['used'] as bool? ?? false;
+    if (used) {
+      debugPrint('[FirestoreService] invite already used: $code');
+      return null;
+    }
+
+    final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+    if (DateTime.now().isAfter(expiresAt)) {
+      debugPrint('[FirestoreService] invite expired: $code');
+      return null;
+    }
+
+    final hostUid = data['hostUid'] as String;
+    final coupleId = data['coupleId'] as String;
+
+    if (hostUid == myUid) {
+      debugPrint('[FirestoreService] cannot accept own invite');
+      return null;
+    }
+
+    // couples 문서에 members 추가
+    await _db.collection('couples').doc(coupleId).set({
+      'members': [hostUid, myUid],
+      'memberEmails': [data['hostEmail'], myEmail],
+      'createdAt': data['createdAt'],
+    }, SetOptions(merge: true));
+
+    // invite 사용 처리
+    await _db.collection('invites').doc(code).update({
+      'used': true,
+      'acceptedBy': myUid,
+      'acceptedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    debugPrint('[FirestoreService] invite accepted: $code → coupleId=$coupleId');
+    return coupleId;
   }
 }

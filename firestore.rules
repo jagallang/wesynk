@@ -47,6 +47,15 @@ service cloud.firestore {
       }
     }
 
+    // invites — 초대 링크
+    match /invites/{code} {
+      allow read: if isAuth();
+      allow create: if isAuth() &&
+        request.resource.data.hostUid == request.auth.uid;
+      allow update: if isAuth();
+      allow delete: if false;
+    }
+
     // pairing — 본인 이메일 문서만 생성/삭제
     match /pairing/{email} {
       allow read: if isAuth();

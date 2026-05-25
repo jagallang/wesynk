@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,6 +104,25 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
     final service = ref.read(firestoreServiceProvider);
 
     debugPrint('[AuthGate] uid=$uid, email=$email');
+
+    // 0. URL에 invite 파라미터가 있으면 초대 수락
+    if (kIsWeb) {
+      final uri = Uri.base;
+      final inviteCode = uri.queryParameters['invite'];
+      if (inviteCode != null && inviteCode.isNotEmpty) {
+        debugPrint('[AuthGate] invite code found: $inviteCode');
+        final coupleId = await service.acceptInvite(
+          code: inviteCode,
+          myUid: uid,
+          myEmail: email ?? '',
+        );
+        if (coupleId != null) {
+          ref.read(coupleIdProvider.notifier).state = coupleId;
+          debugPrint('[AuthGate] invite accepted! coupleId=$coupleId');
+          return;
+        }
+      }
+    }
 
     // 1. pairing 문서에서 매칭된 coupleId 조회
     if (email != null) {
