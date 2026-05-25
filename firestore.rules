@@ -14,7 +14,8 @@ service cloud.firestore {
     // couples 컬렉션 — 멤버만 읽기/수정
     match /couples/{coupleId} {
       allow read: if isCoupleMemeber(coupleId);
-      allow create: if isAuth();
+      allow create: if isAuth() &&
+        request.auth.uid in request.resource.data.members;
       allow update: if isCoupleMemeber(coupleId);
       allow delete: if false;
 
@@ -50,7 +51,7 @@ service cloud.firestore {
     match /pairing/{email} {
       allow read: if isAuth();
       allow create: if isAuth() && request.auth.token.email == email;
-      allow update: if isAuth();
+      allow update: if isAuth() && request.auth.token.email == email;
       allow delete: if isAuth() && request.auth.token.email == email;
     }
   }

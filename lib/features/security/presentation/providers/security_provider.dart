@@ -75,6 +75,7 @@ String hashPin(String pin) {
 Future<void> saveSecurityToFirestore(WidgetRef ref) async {
   final security = ref.read(securityProvider);
   final coupleId = ref.read(coupleIdProvider);
+  if (coupleId == 'uninitialized') return;
   final service = ref.read(firestoreServiceProvider);
   await service.saveSettings(coupleId: coupleId, settings: {
     'pinEnabled': security.pinEnabled,
