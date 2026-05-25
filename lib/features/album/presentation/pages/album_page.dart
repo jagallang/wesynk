@@ -401,14 +401,23 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   @override
   void initState() {
     super.initState();
-    _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    _urlFuture = _loadUrl();
   }
 
   @override
   void didUpdateWidget(_PhotoThumb old) {
     super.didUpdateWidget(old);
     if (old.photo.id != widget.photo.id) {
-      _urlFuture = widget.photoService.thumbnailUrl(widget.photo, size: 400);
+      _urlFuture = _loadUrl();
+    }
+  }
+
+  /// 썸네일 URL 로드, 실패 시 원본 URL로 폴백
+  Future<String> _loadUrl() async {
+    try {
+      return await widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    } catch (_) {
+      return await widget.photoService.originalUrl(widget.photo);
     }
   }
 
@@ -460,6 +469,11 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     return FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Container(
+              color: Colors.grey.shade200,
+              child: const Icon(Icons.broken_image, color: Colors.grey));
+        }
         if (!snap.hasData) {
           return Container(color: Colors.grey.shade200);
         }
