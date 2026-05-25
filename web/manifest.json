@@ -1,6 +1,6 @@
 {
-    "name": "WeSync",
-    "short_name": "WeSync",
+    "name": "WCalendar",
+    "short_name": "WCalendar",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFBF8",
