@@ -748,6 +748,39 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
   String? _inviteLink;
 
   Future<void> _createInvite() async {
+    // 페어링 코드 입력 다이얼로그
+    final codeCtrl = TextEditingController();
+    final pairingCode = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(S.isKo ? '페어링 코드 설정' : 'Set Pairing Code'),
+        content: TextField(
+          controller: codeCtrl,
+          autofocus: true,
+          maxLength: 20,
+          decoration: InputDecoration(
+            hintText: S.isKo ? '상대방에게 알려줄 코드' : 'Code to share with partner',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final code = codeCtrl.text.trim();
+              if (code.isNotEmpty) Navigator.pop(ctx, code);
+            },
+            child: Text(S.confirm),
+          ),
+        ],
+      ),
+    ).then((v) { codeCtrl.dispose(); return v; });
+
+    if (pairingCode == null || pairingCode.isEmpty) return;
+
     setState(() => _loading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
@@ -757,6 +790,7 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
         uid: user.uid,
         coupleId: coupleId,
         email: user.email ?? '',
+        pairingCode: pairingCode,
       );
       setState(() {
         _inviteLink = 'https://wesynk-app.web.app/?invite=$code';

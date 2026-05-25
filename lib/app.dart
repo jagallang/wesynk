@@ -56,6 +56,7 @@ class _AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<_AuthGate> {
   bool _initialized = false;
   bool _initializing = false;
+  String? _pendingInviteCode;
 
   /// 로그인 후 coupleId 결정 + 설정 로드
   Future<void> _initialize() async {
@@ -90,7 +91,89 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
       debugPrint('[AuthGate] initialize error: $e\n$stack');
     }
 
-    if (mounted) setState(() => _initialized = true);
+    if (mounted) {
+      setState(() => _initialized = true);
+      // 초기화 후 pending invite 처리
+      if (_pendingInviteCode != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showInviteCodeDialog();
+        });
+      }
+    }
+  }
+
+  Future<void> _showInviteCodeDialog() async {
+    final inviteCode = _pendingInviteCode;
+    if (inviteCode == null) return;
+    _pendingInviteCode = null;
+
+    final codeCtrl = TextEditingController();
+    final pairingCode = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(S.isKo ? '페어링 코드 입력' : 'Enter Pairing Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              S.isKo
+                  ? '파트너에게 받은 페어링 코드를 입력하세요'
+                  : 'Enter the pairing code from your partner',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeCtrl,
+              autofocus: true,
+              maxLength: 20,
+              decoration: InputDecoration(
+                hintText: S.isKo ? '페어링 코드' : 'Pairing code',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final code = codeCtrl.text.trim();
+              if (code.isNotEmpty) Navigator.pop(ctx, code);
+            },
+            child: Text(S.confirm),
+          ),
+        ],
+      ),
+    ).then((v) { codeCtrl.dispose(); return v; });
+
+    if (pairingCode == null || pairingCode.isEmpty || !mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final service = ref.read(firestoreServiceProvider);
+    final coupleId = await service.acceptInvite(
+      code: inviteCode,
+      myUid: user.uid,
+      myEmail: user.email?.toLowerCase() ?? '',
+      pairingCode: pairingCode,
+    );
+
+    if (coupleId != null && mounted) {
+      ref.read(coupleIdProvider.notifier).state = coupleId;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(S.isKo ? '파트너와 연결되었습니다!' : 'Connected with partner!')),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(S.isKo ? '페어링 코드가 일치하지 않습니다' : 'Pairing code does not match')),
+      );
+    }
   }
 
   /// pairing 문서에서 coupleId 복원 또는 임시 생성
@@ -105,22 +188,13 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
 
     debugPrint('[AuthGate] uid=$uid, email=$email');
 
-    // 0. URL에 invite 파라미터가 있으면 초대 수락
+    // 0. URL에 invite 파라미터가 있으면 저장 (초기화 후 다이얼로그 표시)
     if (kIsWeb) {
       final uri = Uri.base;
       final inviteCode = uri.queryParameters['invite'];
       if (inviteCode != null && inviteCode.isNotEmpty) {
         debugPrint('[AuthGate] invite code found: $inviteCode');
-        final coupleId = await service.acceptInvite(
-          code: inviteCode,
-          myUid: uid,
-          myEmail: email ?? '',
-        );
-        if (coupleId != null) {
-          ref.read(coupleIdProvider.notifier).state = coupleId;
-          debugPrint('[AuthGate] invite accepted! coupleId=$coupleId');
-          return;
-        }
+        _pendingInviteCode = inviteCode;
       }
     }
 

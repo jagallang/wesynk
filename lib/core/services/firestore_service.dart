@@ -371,13 +371,16 @@ class FirestoreService {
     required String uid,
     required String coupleId,
     required String email,
+    required String pairingCode,
   }) async {
     final code = _generateCode();
+    final codeHash = sha256.convert(utf8.encode(pairingCode)).toString();
     final now = DateTime.now();
     await _db.collection('invites').doc(code).set({
       'hostUid': uid,
       'hostEmail': email,
       'coupleId': coupleId,
+      'pairingCodeHash': codeHash,
       'createdAt': Timestamp.fromDate(now),
       'expiresAt': Timestamp.fromDate(now.add(const Duration(hours: 24))),
       'used': false,
@@ -386,11 +389,12 @@ class FirestoreService {
     return code;
   }
 
-  /// 초대 수락 → couples.members에 추가 → coupleId 반환
+  /// 초대 수락 → 페어링 코드 검증 → couples.members에 추가 → coupleId 반환
   Future<String?> acceptInvite({
     required String code,
     required String myUid,
     required String myEmail,
+    required String pairingCode,
   }) async {
     final doc = await _db.collection('invites').doc(code).get();
     if (!doc.exists) {
@@ -416,6 +420,14 @@ class FirestoreService {
 
     if (hostUid == myUid) {
       debugPrint('[FirestoreService] cannot accept own invite');
+      return null;
+    }
+
+    // 페어링 코드 검증
+    final storedHash = data['pairingCodeHash'] as String?;
+    final inputHash = sha256.convert(utf8.encode(pairingCode)).toString();
+    if (storedHash != null && storedHash != inputHash) {
+      debugPrint('[FirestoreService] pairing code mismatch');
       return null;
     }
 
