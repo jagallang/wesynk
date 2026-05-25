@@ -47,12 +47,15 @@ service cloud.firestore {
       }
     }
 
-    // invites — 초대 링크
+    // invites — 초대 링크 (1회용)
     match /invites/{code} {
       allow read: if isAuth();
       allow create: if isAuth() &&
         request.resource.data.hostUid == request.auth.uid;
-      allow update: if isAuth();
+      allow update: if isAuth() &&
+        resource.data.used == false &&
+        resource.data.hostUid != request.auth.uid &&
+        request.resource.data.used == true;
       allow delete: if false;
     }
 
