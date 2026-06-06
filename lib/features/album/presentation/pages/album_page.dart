@@ -425,6 +425,16 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   @override
   Widget build(BuildContext context) {
     if (widget.photo.uploading) {
+      // 5분 이상 uploading 상태면 stuck으로 판단
+      final stuckTimeout = DateTime.now()
+          .subtract(const Duration(minutes: 5));
+      final isStuck = widget.photo.uploadedAt.isBefore(stuckTimeout);
+      if (isStuck) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.error_outline, color: Colors.orange),
+        );
+      }
       return Container(
         color: Colors.grey.shade200,
         child: const Center(
@@ -470,16 +480,17 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     return FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snap) {
-        if (snap.hasError || !snap.hasData || snap.data!.isEmpty) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return Container(color: Colors.grey.shade200);
-          }
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(color: Colors.grey.shade200);
+        }
+        final url = snap.data ?? '';
+        if (snap.hasError || url.isEmpty) {
           return Container(
               color: Colors.grey.shade200,
               child: const Icon(Icons.broken_image, color: Colors.grey));
         }
         return CachedNetworkImage(
-          imageUrl: snap.data!,
+          imageUrl: url,
           fit: BoxFit.cover,
           placeholder: (_, __) => Container(color: Colors.grey.shade200),
           errorWidget: (_, __, ___) => Container(
