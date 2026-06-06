@@ -414,11 +414,12 @@ class _PhotoThumbState extends State<_PhotoThumb> {
 
   /// 썸네일 URL 로드, 실패 시 원본 URL로 폴백
   Future<String> _loadUrl() async {
-    try {
-      return await widget.photoService.thumbnailUrl(widget.photo, size: 400);
-    } catch (_) {
-      return await widget.photoService.originalUrl(widget.photo);
-    }
+    final thumb =
+        await widget.photoService.thumbnailUrl(widget.photo, size: 400);
+    if (thumb.isNotEmpty) return thumb;
+    final original = await widget.photoService.originalUrl(widget.photo);
+    if (original.isNotEmpty) return original;
+    return '';
   }
 
   @override
@@ -469,13 +470,13 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     return FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snap) {
-        if (snap.hasError) {
+        if (snap.hasError || !snap.hasData || snap.data!.isEmpty) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return Container(color: Colors.grey.shade200);
+          }
           return Container(
               color: Colors.grey.shade200,
               child: const Icon(Icons.broken_image, color: Colors.grey));
-        }
-        if (!snap.hasData) {
-          return Container(color: Colors.grey.shade200);
         }
         return CachedNetworkImage(
           imageUrl: snap.data!,
