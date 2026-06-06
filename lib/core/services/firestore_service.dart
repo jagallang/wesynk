@@ -431,7 +431,16 @@ class FirestoreService {
       return null;
     }
 
-    // couples 문서에 members 추가
+    // couples 문서에 members 추가 (이미 2명이면 거부)
+    final coupleDoc = await _db.collection('couples').doc(coupleId).get();
+    if (coupleDoc.exists) {
+      final existingMembers = List<String>.from(
+          coupleDoc.data()?['members'] as List? ?? []);
+      if (existingMembers.length >= 2 && !existingMembers.contains(myUid)) {
+        debugPrint('[FirestoreService] couple already has 2 members');
+        return null;
+      }
+    }
     await _db.collection('couples').doc(coupleId).set({
       'members': [hostUid, myUid],
       'memberEmails': [data['hostEmail'], myEmail],
