@@ -46,6 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
   ChatSettings _chatSettings = const ChatSettings();
   DateTime? _clearBefore;
   Message? _replyingTo;
+  bool _hasEphemeral = false;
 
   @override
   void initState() {
@@ -57,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     _service.seedSampleMessages();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted && _hasEphemeral) setState(() {});
     });
   }
 
@@ -198,6 +199,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
                   return true;
                 }).toList();
+
+                _hasEphemeral = visible.any((m) => m.isEphemeral);
 
                 if (visible.isEmpty) {
                   return Center(
