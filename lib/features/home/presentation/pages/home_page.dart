@@ -29,6 +29,7 @@ class _HomePageState extends ConsumerState<HomePage>
   int _navIndex = 0;
   DateTime _lastActivity = DateTime.now();
   DateTime? _chatClearBefore;
+  bool _chatClearLoaded = false;
 
   String get _myUid => FirebaseAuth.instance.currentUser!.uid;
 
@@ -103,8 +104,11 @@ class _HomePageState extends ConsumerState<HomePage>
     final service = ref.read(firestoreServiceProvider);
     final cleared = await service.getChatClearedAt(
         ref.read(coupleIdProvider));
-    if (cleared != null && mounted) {
-      setState(() => _chatClearBefore = cleared);
+    if (mounted) {
+      setState(() {
+        _chatClearBefore = cleared;
+        _chatClearLoaded = true;
+      });
     }
   }
 
@@ -121,6 +125,10 @@ class _HomePageState extends ConsumerState<HomePage>
         index: _navIndex,
         children: [
           _CalendarView(tabController: _tabController, onAdd: _onAddPressed),
+          if (!_chatClearLoaded)
+            const Scaffold(
+                body: Center(child: CircularProgressIndicator()))
+          else
           ChatScreen(
             coupleId: ref.read(coupleIdProvider),
             myUid: _myUid,
