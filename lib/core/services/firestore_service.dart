@@ -366,14 +366,20 @@ class FirestoreService {
     return List.generate(8, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 
-  /// 초대 링크 생성 → invite/{code} 문서 저장
-  Future<String> createInvite({
+  /// 6자리 숫자 페어링 코드 생성
+  String _generatePairingCode() {
+    final rng = Random.secure();
+    return List.generate(6, (_) => rng.nextInt(10)).join();
+  }
+
+  /// 초대 링크 생성 → invite/{code} 문서 저장 + 페어링 코드 자동 생성
+  Future<({String code, String pairingCode})> createInvite({
     required String uid,
     required String coupleId,
     required String email,
-    required String pairingCode,
   }) async {
     final code = _generateCode();
+    final pairingCode = _generatePairingCode();
     final codeHash = sha256.convert(utf8.encode(pairingCode)).toString();
     final now = DateTime.now();
     await _db.collection('invites').doc(code).set({
@@ -385,8 +391,8 @@ class FirestoreService {
       'expiresAt': Timestamp.fromDate(now.add(const Duration(hours: 24))),
       'used': false,
     });
-    debugPrint('[FirestoreService] invite created: $code');
-    return code;
+    debugPrint('[FirestoreService] invite created: $code, pairingCode: $pairingCode');
+    return (code: code, pairingCode: pairingCode);
   }
 
   /// 초대 수락 → 페어링 코드 검증 → couples.members에 추가 → coupleId 반환

@@ -746,54 +746,22 @@ class _PartnerCard extends ConsumerStatefulWidget {
 class _PartnerCardState extends ConsumerState<_PartnerCard> {
   bool _loading = false;
   String? _inviteLink;
+  String? _pairingCode;
 
   Future<void> _createInvite() async {
-    // 페어링 코드 입력 다이얼로그
-    final codeCtrl = TextEditingController();
-    final pairingCode = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(S.isKo ? '페어링 코드 설정' : 'Set Pairing Code'),
-        content: TextField(
-          controller: codeCtrl,
-          autofocus: true,
-          maxLength: 20,
-          decoration: InputDecoration(
-            hintText: S.isKo ? '상대방에게 알려줄 코드' : 'Code to share with partner',
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(S.cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final code = codeCtrl.text.trim();
-              if (code.isNotEmpty) Navigator.pop(ctx, code);
-            },
-            child: Text(S.confirm),
-          ),
-        ],
-      ),
-    ).then((v) { codeCtrl.dispose(); return v; });
-
-    if (pairingCode == null || pairingCode.isEmpty) return;
-
     setState(() => _loading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
       final coupleId = ref.read(coupleIdProvider);
       final service = ref.read(firestoreServiceProvider);
-      final code = await service.createInvite(
+      final result = await service.createInvite(
         uid: user.uid,
         coupleId: coupleId,
         email: user.email ?? '',
-        pairingCode: pairingCode,
       );
       setState(() {
-        _inviteLink = 'https://wesynk-app.web.app/?invite=$code';
+        _inviteLink = 'https://wesynk-app.web.app/?invite=${result.code}';
+        _pairingCode = result.pairingCode;
       });
     } catch (e) {
       if (mounted) {
@@ -857,8 +825,8 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
             if (_inviteLink == null) ...[
               Text(
                 S.isKo
-                    ? '초대 링크를 생성해서 파트너에게 보내주세요.\n파트너가 링크를 클릭하면 자동으로 연결됩니다.'
-                    : 'Create an invite link and share it with your partner.\nThey will be connected automatically.',
+                    ? '초대 링크를 생성해서 파트너에게 보내주세요.\n링크와 페어링 코드를 함께 전달하세요.'
+                    : 'Create an invite link and share it with your partner.\nShare the link and pairing code together.',
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 16),
@@ -896,18 +864,43 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                       S.isKo ? '초대 링크가 생성되었습니다' : 'Invite link created',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                    Text(
+                      S.isKo ? '페어링 코드' : 'Pairing Code',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _pairingCode ?? '',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 6,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      S.isKo
+                          ? '링크와 함께 이 코드를 파트너에게 알려주세요'
+                          : 'Share this code with the link to your partner',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
                     Text(
                       _inviteLink!,
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                          fontSize: 11, color: Colors.grey.shade600),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      S.isKo ? '24시간 후 만료됩니다' : 'Expires in 24 hours',
+                      S.isKo ? '24시간 후 만료 · 1회용' : 'Expires in 24h · One-time use',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade400),
+                          fontSize: 10, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -924,6 +917,7 @@ class _PartnerCardState extends ConsumerState<_PartnerCard> {
                           child: FilledButton.icon(
                             onPressed: () {
                               _inviteLink = null;
+                              _pairingCode = null;
                               _createInvite();
                             },
                             icon: const Icon(Icons.refresh, size: 16),
