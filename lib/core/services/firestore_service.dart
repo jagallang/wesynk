@@ -395,14 +395,17 @@ class FirestoreService {
     return (code: code, pairingCode: pairingCode);
   }
 
-  /// 초대 수락 → 페어링 코드 검증 → couples.members에 추가 → coupleId 반환
+  /// 초대 수락 (Transaction으로 원자적 처리)
   Future<String?> acceptInvite({
     required String code,
     required String myUid,
     required String myEmail,
     required String pairingCode,
   }) async {
-    final doc = await _db.collection('invites').doc(code).get();
+    final inviteRef = _db.collection('invites').doc(code);
+
+    // 먼저 invite 읽기 (Transaction 밖에서 — get은 Rules에서 허용)
+    final doc = await inviteRef.get();
     if (!doc.exists) {
       debugPrint('[FirestoreService] invite not found: $code');
       return null;
@@ -437,30 +440,46 @@ class FirestoreService {
       return null;
     }
 
-    // couples 문서에 members 추가 (이미 2명이면 거부)
-    final coupleDoc = await _db.collection('couples').doc(coupleId).get();
-    if (coupleDoc.exists) {
-      final existingMembers = List<String>.from(
-          coupleDoc.data()?['members'] as List? ?? []);
-      if (existingMembers.length >= 2 && !existingMembers.contains(myUid)) {
-        debugPrint('[FirestoreService] couple already has 2 members');
-        return null;
-      }
+    // Transaction으로 invite + couples 원자적 업데이트
+    try {
+      await _db.runTransaction((tx) async {
+        // invite 재확인 (동시 수락 방지)
+        final freshInvite = await tx.get(inviteRef);
+        if (freshInvite.data()?['used'] == true) {
+          throw Exception('already_used');
+        }
+
+        // couples 문서 확인
+        final coupleRef = _db.collection('couples').doc(coupleId);
+        final coupleSnap = await tx.get(coupleRef);
+        if (coupleSnap.exists) {
+          final members = List<String>.from(
+              coupleSnap.data()?['members'] as List? ?? []);
+          if (members.length >= 2 && !members.contains(myUid)) {
+            throw Exception('couple_full');
+          }
+        }
+
+        // invite 사용 처리
+        tx.update(inviteRef, {
+          'used': true,
+          'acceptedBy': myUid,
+          'acceptedAt': Timestamp.fromDate(DateTime.now()),
+        });
+
+        // couples 멤버 추가
+        tx.set(coupleRef, {
+          'members': [hostUid, myUid],
+          'memberEmails': [data['hostEmail'], myEmail],
+          'createdAt': data['createdAt'],
+        }, SetOptions(merge: true));
+      });
+
+      debugPrint('[FirestoreService] invite accepted: $code → coupleId=$coupleId');
+      return coupleId;
+    } catch (e) {
+      debugPrint('[FirestoreService] invite accept failed: $e');
+      return null;
     }
-    await _db.collection('couples').doc(coupleId).set({
-      'members': [hostUid, myUid],
-      'memberEmails': [data['hostEmail'], myEmail],
-      'createdAt': data['createdAt'],
-    }, SetOptions(merge: true));
-
-    // invite 사용 처리
-    await _db.collection('invites').doc(code).update({
-      'used': true,
-      'acceptedBy': myUid,
-      'acceptedAt': Timestamp.fromDate(DateTime.now()),
-    });
-
-    debugPrint('[FirestoreService] invite accepted: $code → coupleId=$coupleId');
-    return coupleId;
   }
 }
