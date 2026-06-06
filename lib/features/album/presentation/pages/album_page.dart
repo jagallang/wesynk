@@ -412,6 +412,32 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     }
   }
 
+  void _showDeleteFailedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(S.isKo ? '업로드 실패' : 'Upload Failed'),
+        content: Text(S.isKo
+            ? '이 사진은 업로드에 실패했습니다.\n삭제하고 다시 업로드하세요.'
+            : 'This photo failed to upload.\nDelete and re-upload.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              widget.photoService.permanentlyDelete(widget.photo.id);
+              Navigator.pop(ctx);
+            },
+            child: Text(S.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 썸네일 URL 로드, 실패 시 원본 URL로 폴백
   Future<String> _loadUrl() async {
     final thumb =
@@ -430,9 +456,20 @@ class _PhotoThumbState extends State<_PhotoThumb> {
           .subtract(const Duration(minutes: 5));
       final isStuck = widget.photo.uploadedAt.isBefore(stuckTimeout);
       if (isStuck) {
-        return Container(
-          color: Colors.grey.shade200,
-          child: const Icon(Icons.error_outline, color: Colors.orange),
+        return GestureDetector(
+          onTap: () => _showDeleteFailedDialog(context),
+          child: Container(
+            color: Colors.grey.shade200,
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: Colors.orange, size: 28),
+                SizedBox(height: 4),
+                Text('업로드 실패',
+                    style: TextStyle(fontSize: 9, color: Colors.orange)),
+              ],
+            ),
+          ),
         );
       }
       return Container(
