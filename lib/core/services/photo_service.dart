@@ -170,7 +170,7 @@ class PhotoService {
 
   // ─── 조회 ───
 
-  Stream<List<PhotoItem>> recentPhotos({int limit = 500}) {
+  Stream<List<PhotoItem>> recentPhotos({int limit = 100}) {
     return _itemsCol
         .where('type', isEqualTo: 'photo')
         .orderBy('createdAt', descending: true)
