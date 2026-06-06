@@ -304,19 +304,9 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         ref.read(chatTitleProvider.notifier).state =
             s['chatTitle'] as String;
       }
-      // 보안 설정 로드
-      if (s['pinHash'] != null || s['pinEnabled'] != null) {
-        ref.read(securityProvider.notifier).state = SecuritySettings(
-          pinEnabled: s['pinEnabled'] as bool? ?? true,
-          pin: s['pinHash'] as String?,
-          lockOnTabSwitch: s['lockOnTabSwitch'] as bool? ?? false,
-          lockOnResume: s['lockOnResume'] as bool? ?? true,
-          autoLockDuration: AutoLockDuration.values.firstWhere(
-            (d) => d.name == (s['autoLockDuration'] as String?),
-            orElse: () => AutoLockDuration.off,
-          ),
-        );
-      }
+      // 보안 설정 로드 (개인 문서에서)
+      ref.read(securityProvider.notifier).state =
+          await loadSecurityFromFirestore();
       // 알림 설정 로드
       if (s['notif_chat'] != null) {
         ref.read(notifChatProvider.notifier).state = s['notif_chat'] as bool;

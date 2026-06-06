@@ -40,8 +40,9 @@ service cloud.firestore {
       }
     }
 
-    // users — FCM 토큰 저장 (본인만)
+    // users — 본인 문서만 읽기/쓰기 (보안 설정 + FCM 토큰)
     match /users/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
       match /tokens/{tokenId} {
         allow read, write: if isAuth() && request.auth.uid == userId;
       }

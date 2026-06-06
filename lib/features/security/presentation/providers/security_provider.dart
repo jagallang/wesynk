@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../home/presentation/providers/home_providers.dart';
 
 enum AutoLockDuration {
   off(0, '끄기', 'Off'),
@@ -71,17 +72,37 @@ String hashPin(String pin) {
   return sha256.convert(bytes).toString();
 }
 
-/// Firestore에 보안 설정 저장 (PIN은 이미 해시된 상태)
+/// Firestore에 보안 설정 저장 (users/{uid}/security — 개인 문서)
 Future<void> saveSecurityToFirestore(WidgetRef ref) async {
   final security = ref.read(securityProvider);
-  final coupleId = ref.read(coupleIdProvider);
-  if (coupleId == 'uninitialized') return;
-  final service = ref.read(firestoreServiceProvider);
-  await service.saveSettings(coupleId: coupleId, settings: {
-    'pinEnabled': security.pinEnabled,
-    'pinHash': security.pin,
-    'lockOnTabSwitch': security.lockOnTabSwitch,
-    'lockOnResume': security.lockOnResume,
-    'autoLockDuration': security.autoLockDuration.name,
-  });
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return;
+  await FirebaseFirestore.instance.collection('users').doc(uid).set({
+    'security': {
+      'pinEnabled': security.pinEnabled,
+      'pinHash': security.pin,
+      'lockOnTabSwitch': security.lockOnTabSwitch,
+      'lockOnResume': security.lockOnResume,
+      'autoLockDuration': security.autoLockDuration.name,
+    },
+  }, SetOptions(merge: true));
+}
+
+/// Firestore에서 보안 설정 로드 (users/{uid}/security)
+Future<SecuritySettings> loadSecurityFromFirestore() async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return const SecuritySettings();
+  final doc =
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+  final s = (doc.data()?['security'] as Map<String, dynamic>?) ?? {};
+  return SecuritySettings(
+    pinEnabled: s['pinEnabled'] as bool? ?? true,
+    pin: s['pinHash'] as String?,
+    lockOnTabSwitch: s['lockOnTabSwitch'] as bool? ?? false,
+    lockOnResume: s['lockOnResume'] as bool? ?? true,
+    autoLockDuration: AutoLockDuration.values.firstWhere(
+      (d) => d.name == (s['autoLockDuration'] as String?),
+      orElse: () => AutoLockDuration.min1,
+    ),
+  );
 }
